@@ -1,6 +1,7 @@
 # :coding: utf-8
 
 import uuid
+import math
 
 import nuke
 from PySide2 import QtGui, QtWidgets, QtCore
@@ -218,8 +219,7 @@ class Ball(object):
         """
         self._x = x
         self._y = y
-        self._vector_x = 1
-        self._vector_y = -3
+        self._vector = Vector(1, -3)
 
         self._get_node()
 
@@ -238,16 +238,16 @@ class Ball(object):
     def move(self):
         """Move the ball following the motion vector."""
         node = self._get_node()
-        node.setXpos(self.x + self._vector_x)
-        node.setYpos(self.y + self._vector_y)
+        node.setXpos(int(round(self.x - self.RADIUS + self._vector.x)))
+        node.setYpos(int(round(self.y - self.RADIUS + self._vector.y)))
 
     def bounce_horizontal(self):
         """Invert the motion vector on the horizontal axis."""
-        self._vector_x *= -1
+        self._vector *= Vector(-1, 1)
 
     def bounce_vertical(self):
         """Invert the motion vector on the vertical axis."""
-        self._vector_y *= -1
+        self._vector *= Vector(1, -1)
 
     def _get_node(self):
         """Retrieve the the node representing the ball.
@@ -267,8 +267,7 @@ class Ball(object):
             )
 
             # Reset motion vector.
-            self._vector_x = 1
-            self._vector_y = -3
+            self._vector = Vector(1, -3)
 
         return node
 
@@ -287,9 +286,12 @@ class Paddle(object):
         :param y: Initial position of the paddle on the Y axis.
 
         """
+        self._x = x
+        self._y = y
+
         node = self._get_node()
-        node.setXpos(x)
-        node.setYpos(y)
+        node.setXpos(self._x)
+        node.setYpos(self._y)
 
     @property
     def x(self):
@@ -331,7 +333,7 @@ class Paddle(object):
         """
         nodes = nuke.allNodes("Viewer")
         if not len(nodes):
-            nodes = [nuke.nodes.Viewer()]
+            nodes = [nuke.nodes.Viewer(xpos=self._x, ypos=self._y)]
         return nodes[0]
 
 
@@ -473,3 +475,135 @@ class Brick(object):
             node["autolabel"].setValue(self._label)
 
         return node
+
+
+class Vector(object):
+    """Representation of a Vector."""
+
+    def __init__(self, x, y):
+        """Initialize vector.
+
+        :param x: Initial projected value on the X axis.
+
+        :param y: Initial projected value on the Y axis.
+
+
+        """
+        self._value = (x, y)
+
+    def __repr__(self):
+        """Display representation of vector"""
+        return "<Vector(x={},y={})>".format(self._value[0], self._value[1])
+
+    def __add__(self, other):
+        """Addition with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        if isinstance(other, Vector):
+            return Vector(self.x + other.x, self.y + other.y)
+        return Vector(self.x + other, self.y + other)
+
+    def __iadd__(self, other):
+        """In-place addition with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        self._value = (self + other)._value
+        return self
+
+    def __sub__(self, other):
+        """Subtraction with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        if isinstance(other, Vector):
+            return Vector(self.x - other.x, self.y - other.y)
+        return Vector(self.x - other, self.y - other)
+
+    def __isub__(self, other):
+        """In-place subtraction with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        self._value = (self - other)._value
+        return self
+
+    def __mul__(self, other):
+        """Multiplication with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        if isinstance(other, Vector):
+            return Vector(self.x * other.x, self.y * other.y)
+        return Vector(self.x * other, self.y * other)
+
+    def __imul__(self, other):
+        """In-place multiplication with vector.
+
+        :param other: Instance of :class:`Vector` or scalar.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        self._value = (self * other)._value
+        return self
+
+    def __iter__(self):
+        """Iterate though vector values.
+
+        :return: Iterator.
+
+        """
+        return iter(self._value)
+
+    def __abs__(self):
+        """Length of the vector
+
+        :return: Floating value.
+
+        """
+        return math.sqrt(sum(v * v for v in list(self)))
+
+    def dot(self, other):
+        """Return the dot product of two vectors.
+
+        :param other: Instance of :class:`Vector`.
+
+        :return: Floating value.
+
+        """
+        return sum(v * w for v, w in zip(self, other))
+
+    @property
+    def x(self):
+        """Projected value on the X axis.
+
+        :return: Integer value.
+
+        """
+        return self._value[0]
+
+    @property
+    def y(self):
+        """Projected value on the Y axis.
+
+        :return: Integer value.
+
+        """
+        return self._value[1]
