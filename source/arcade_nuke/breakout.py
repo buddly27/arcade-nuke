@@ -1,10 +1,11 @@
 # :coding: utf-8
 
 import uuid
-import math
 
 import nuke
 from PySide2 import QtGui, QtWidgets, QtCore
+
+from arcade_nuke.utility import Vector
 
 
 class Game(object):
@@ -37,8 +38,8 @@ class Game(object):
 
         # Initialize the ball.
         self._ball = Ball(
-            x=self._paddle.x,
-            y=self._paddle.y
+            x=self._paddle.position.x,
+            y=self._paddle.position.y - 20
         )
 
         # Initialize the brick pattern to destroy.
@@ -189,11 +190,11 @@ class Field(object):
         :return: Boolean value.
 
         """
-        if ball.x > self._right or ball.x < self._left:
+        if ball.position.x > self._right or ball.position.x < self._left:
             ball.bounce_horizontal()
             return True
 
-        if ball.y > self._bottom or ball.y < self._top:
+        if ball.position.y > self._bottom or ball.position.y < self._top:
             ball.bounce_vertical()
             return True
 
@@ -217,37 +218,32 @@ class Ball(object):
         :param y: Initial position of the ball on the Y axis.
 
         """
-        self._x = x
-        self._y = y
-        self._vector = Vector(1, -3)
+        self._initial_position = Vector(x, y)
+        self._direction = Vector(1, -3)
 
         self._get_node()
 
     @property
-    def x(self):
-        """Position of the center of the ball on the X axis"""
+    def position(self):
+        """Return the middle position the ball as Vector."""
         node = self._get_node()
-        return node.xpos() + self.RADIUS
-
-    @property
-    def y(self):
-        """Position of the center of the ball on the Y axis"""
-        node = self._get_node()
-        return node.ypos() + self.RADIUS
+        return Vector(node.xpos(), node.ypos()) + self.RADIUS
 
     def move(self):
         """Move the ball following the motion vector."""
         node = self._get_node()
-        node.setXpos(int(round(self.x - self.RADIUS + self._vector.x)))
-        node.setYpos(int(round(self.y - self.RADIUS + self._vector.y)))
+        x = self.position.x - self.RADIUS
+        y = self.position.y - self.RADIUS
+        node.setXpos(int(round(x + self._direction.x)))
+        node.setYpos(int(round(y + self._direction.y)))
 
     def bounce_horizontal(self):
         """Invert the motion vector on the horizontal axis."""
-        self._vector *= Vector(-1, 1)
+        self._direction *= Vector(-1, 1)
 
     def bounce_vertical(self):
         """Invert the motion vector on the vertical axis."""
-        self._vector *= Vector(1, -1)
+        self._direction *= Vector(1, -1)
 
     def _get_node(self):
         """Retrieve the the node representing the ball.
@@ -261,13 +257,13 @@ class Ball(object):
         if not node:
             node = nuke.nodes.Dot(
                 name=self.NAME,
-                xpos=self._x + 20,
-                ypos=self._y - 20,
+                xpos=self._initial_position.x,
+                ypos=self._initial_position.y,
                 hide_input=True
             )
 
             # Reset motion vector.
-            self._vector = Vector(1, -3)
+            self._direction = Vector(1, -3)
 
         return node
 
@@ -278,6 +274,9 @@ class Paddle(object):
     #: Width of the Viewer node representing the paddle.
     WIDTH = 70
 
+    #: Height of the node representing the paddle.
+    HEIGHT = 17
+
     def __init__(self, x, y):
         """Initialize the paddle.
 
@@ -286,24 +285,18 @@ class Paddle(object):
         :param y: Initial position of the paddle on the Y axis.
 
         """
-        self._x = x
-        self._y = y
+        self._position = Vector(x, y)
 
         node = self._get_node()
-        node.setXpos(self._x)
-        node.setYpos(self._y)
-
-    @property
-    def x(self):
-        """Position of the paddle on the X axis."""
-        node = self._get_node()
-        return node.xpos()
+        node.setXpos(self._position.x)
+        node.setYpos(self._position.y)
 
     @property
-    def y(self):
-        """Position of the paddle on the Y axis."""
+    def position(self):
+        """Return the middle position the paddle as Vector."""
         node = self._get_node()
-        return node.ypos()
+        position = Vector(node.xpos(), node.ypos())
+        return position + Vector(self.WIDTH/2, self.HEIGHT/2)
 
     def move(self, y, right_edge, left_edge):
         """Move the paddle on the X axis within the limit of the field.
@@ -333,7 +326,12 @@ class Paddle(object):
         """
         nodes = nuke.allNodes("Viewer")
         if not len(nodes):
-            nodes = [nuke.nodes.Viewer(xpos=self._x, ypos=self._y)]
+            nodes = [
+                nuke.nodes.Viewer(
+                    xpos=self._position.x,
+                    ypos=self._position.y
+                )
+            ]
         return nodes[0]
 
 
@@ -404,10 +402,10 @@ class BrickManager(object):
 class Brick(object):
     """Object managing a single brick."""
 
-    #: Width of the node representing the paddle.
+    #: Width of the node representing the brick.
     WIDTH = 79
 
-    #: Height of the node representing the paddle.
+    #: Height of the node representing the brick.
     HEIGHT = 17
 
     def __init__(self, x, y, node_class, label):
@@ -425,14 +423,23 @@ class Brick(object):
         self._name = uuid.uuid4().hex
         self._node_class = node_class
         self._label = label
-        self._x = x
-        self._y = y
+        self._position = Vector(x, y)
 
-        node = self._get_node()
-        self._top = node.ypos()
-        self._left = node.xpos()
-        self._bottom = node.ypos() + self.HEIGHT
-        self._right = node.xpos() + self.WIDTH
+        self._get_node()
+
+    @property
+    def position(self):
+        """Return the middle position the brick as Vector."""
+        return self._position + Vector(self.WIDTH/2, self.HEIGHT/2)
+
+    def vertices(self):
+        """Return all vertices of the brick as vectors."""
+        return [
+            self._position,
+            self._position + Vector(0, self.HEIGHT),
+            self._position + Vector(self.WIDTH, self.HEIGHT),
+            self._position + Vector(self.WIDTH, 0),
+        ]
 
     def hit(self, ball):
         """Indicate whether the *ball* hit the brick.
@@ -447,9 +454,23 @@ class Brick(object):
         """
         node = self._get_node()
 
-        if (
-            self._right > ball.x > self._left and
-            self._bottom > ball.y > self._top
+        maximum_distance = float("-inf")
+
+        # Compute normalized distance between ball and brick.
+        distance = ball.position - self.position
+        magnitude = abs(distance)
+        normalized_distance = distance / magnitude
+
+        for vertex in self.vertices():
+            delta_vector = vertex - self.position
+            projection = delta_vector.dot(normalized_distance)
+
+            if maximum_distance < projection:
+                maximum_distance = projection
+
+        if not (
+            magnitude - maximum_distance - ball.RADIUS > 0 and
+            magnitude > 0
         ):
             nuke.delete(node)
             ball.bounce_vertical()
@@ -468,142 +489,10 @@ class Brick(object):
         if not node:
             node = getattr(nuke.nodes, self._node_class)(
                 name=self._name,
-                xpos=self._x,
-                ypos=self._y,
+                xpos=self._position.x,
+                ypos=self._position.y,
                 hide_input=True
             )
             node["autolabel"].setValue(self._label)
 
         return node
-
-
-class Vector(object):
-    """Representation of a Vector."""
-
-    def __init__(self, x, y):
-        """Initialize vector.
-
-        :param x: Initial projected value on the X axis.
-
-        :param y: Initial projected value on the Y axis.
-
-
-        """
-        self._value = (x, y)
-
-    def __repr__(self):
-        """Display representation of vector"""
-        return "<Vector(x={},y={})>".format(self._value[0], self._value[1])
-
-    def __add__(self, other):
-        """Addition with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x + other.x, self.y + other.y)
-        return Vector(self.x + other, self.y + other)
-
-    def __iadd__(self, other):
-        """In-place addition with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self + other)._value
-        return self
-
-    def __sub__(self, other):
-        """Subtraction with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x - other.x, self.y - other.y)
-        return Vector(self.x - other, self.y - other)
-
-    def __isub__(self, other):
-        """In-place subtraction with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self - other)._value
-        return self
-
-    def __mul__(self, other):
-        """Multiplication with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x * other.x, self.y * other.y)
-        return Vector(self.x * other, self.y * other)
-
-    def __imul__(self, other):
-        """In-place multiplication with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self * other)._value
-        return self
-
-    def __iter__(self):
-        """Iterate though vector values.
-
-        :return: Iterator.
-
-        """
-        return iter(self._value)
-
-    def __abs__(self):
-        """Length of the vector
-
-        :return: Floating value.
-
-        """
-        return math.sqrt(sum(v * v for v in list(self)))
-
-    def dot(self, other):
-        """Return the dot product of two vectors.
-
-        :param other: Instance of :class:`Vector`.
-
-        :return: Floating value.
-
-        """
-        return sum(v * w for v, w in zip(self, other))
-
-    @property
-    def x(self):
-        """Projected value on the X axis.
-
-        :return: Integer value.
-
-        """
-        return self._value[0]
-
-    @property
-    def y(self):
-        """Projected value on the Y axis.
-
-        :return: Integer value.
-
-        """
-        return self._value[1]
