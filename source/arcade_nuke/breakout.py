@@ -15,7 +15,7 @@ class Game(object):
     def __init__(self):
         """Initialize the game."""
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(5)
+        self._timer.setInterval(50)
         self._timer.timeout.connect(self._play)
 
         self._field = None
@@ -393,6 +393,7 @@ class BrickManager(object):
         """
         for label, brick in self._mapping.items():
             if brick.hit(ball):
+                brick.destroy()
                 del self._mapping[label]
                 return True
 
@@ -425,20 +426,24 @@ class Brick(object):
         self._label = label
         self._position = Vector(x, y)
 
+        self._destroyed = False
         self._get_node()
 
     @property
     def position(self):
         """Return the middle position the brick as Vector."""
-        return self._position + Vector(self.WIDTH/2, self.HEIGHT/2)
+        node = self._get_node()
+        position = Vector(node.xpos(), node.ypos())
+        return position + Vector(self.WIDTH/2, self.HEIGHT/2)
 
     def vertices(self):
         """Return all vertices of the brick as vectors."""
+        position = self.position - Vector(self.WIDTH/2, self.HEIGHT/2)
         return [
-            self._position,
-            self._position + Vector(0, self.HEIGHT),
-            self._position + Vector(self.WIDTH, self.HEIGHT),
-            self._position + Vector(self.WIDTH, 0),
+            position,
+            position + Vector(0, self.HEIGHT),
+            position + Vector(self.WIDTH, self.HEIGHT),
+            position + Vector(self.WIDTH, 0),
         ]
 
     def hit(self, ball):
@@ -452,8 +457,6 @@ class Brick(object):
         :return: Boolean value.
 
         """
-        node = self._get_node()
-
         maximum_distance = float("-inf")
 
         # Compute normalized distance between ball and brick.
@@ -468,15 +471,19 @@ class Brick(object):
             if maximum_distance < projection:
                 maximum_distance = projection
 
-        if not (
-            magnitude - maximum_distance - ball.RADIUS > 0 and
-            magnitude > 0
-        ):
-            nuke.delete(node)
+        # TODO: Improve collision detection for rectangle
+
+        if not magnitude - maximum_distance - ball.RADIUS > 0 and magnitude > 0:
             ball.bounce_vertical()
             return True
 
         return False
+
+    def destroy(self):
+        """Delete node."""
+        node = self._get_node()
+        nuke.delete(node)
+        self._destroyed = True
 
     def _get_node(self):
         """Retrieve the the node representing the brick.
@@ -484,6 +491,9 @@ class Brick(object):
         Create the brick if necessary.
 
         """
+        if self._destroyed:
+            raise RuntimeError("Brick already destroyed...")
+
         node = nuke.toNode(self._name)
 
         if not node:
