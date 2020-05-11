@@ -156,3 +156,11 @@ class Vector(object):
 
         """
         return sum(v * w for v, w in zip(self, other))
+
+    def unit_vector(self):
+        """Return unit vector.
+
+        :return: Instance of :class:`Vector`.
+
+        """
+        return self / abs(self)

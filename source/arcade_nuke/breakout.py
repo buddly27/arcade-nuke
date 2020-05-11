@@ -15,7 +15,7 @@ class Game(object):
     def __init__(self):
         """Initialize the game."""
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(50)
+        self._timer.setInterval(10)
         self._timer.timeout.connect(self._play)
 
         self._field = None
@@ -191,11 +191,11 @@ class Field(object):
 
         """
         if ball.position.x > self._right or ball.position.x < self._left:
-            ball.bounce_horizontal()
+            ball.motion_vector *= Vector(-1, 1)
             return True
 
         if ball.position.y > self._bottom or ball.position.y < self._top:
-            ball.bounce_vertical()
+            ball.motion_vector *= Vector(1, -1)
             return True
 
         return False
@@ -219,31 +219,33 @@ class Ball(object):
 
         """
         self._initial_position = Vector(x, y)
-        self._direction = Vector(1, -3)
+        self._motion_vector = Vector(1, -3)
 
         self._get_node()
 
     @property
     def position(self):
-        """Return the middle position the ball as Vector."""
+        """Return the middle position the ball as a Vector."""
         node = self._get_node()
         return Vector(node.xpos(), node.ypos()) + self.RADIUS
+
+    @property
+    def motion_vector(self):
+        """Return motion vector of the ball."""
+        return self._motion_vector
+
+    @motion_vector.setter
+    def motion_vector(self, value):
+        """Return motion vector of the ball."""
+        self._motion_vector = value
 
     def move(self):
         """Move the ball following the motion vector."""
         node = self._get_node()
         x = self.position.x - self.RADIUS
         y = self.position.y - self.RADIUS
-        node.setXpos(int(round(x + self._direction.x)))
-        node.setYpos(int(round(y + self._direction.y)))
-
-    def bounce_horizontal(self):
-        """Invert the motion vector on the horizontal axis."""
-        self._direction *= Vector(-1, 1)
-
-    def bounce_vertical(self):
-        """Invert the motion vector on the vertical axis."""
-        self._direction *= Vector(1, -1)
+        node.setXpos(int(round(x + self._motion_vector.x)))
+        node.setYpos(int(round(y + self._motion_vector.y)))
 
     def _get_node(self):
         """Retrieve the the node representing the ball.
@@ -263,7 +265,7 @@ class Ball(object):
             )
 
             # Reset motion vector.
-            self._direction = Vector(1, -3)
+            self._motion_vector = Vector(1, -3)
 
         return node
 
@@ -438,12 +440,12 @@ class Brick(object):
 
     def vertices(self):
         """Return all vertices of the brick as vectors."""
-        position = self.position - Vector(self.WIDTH/2, self.HEIGHT/2)
+        top_left_position = self.position - Vector(self.WIDTH/2, self.HEIGHT/2)
         return [
-            position,
-            position + Vector(0, self.HEIGHT),
-            position + Vector(self.WIDTH, self.HEIGHT),
-            position + Vector(self.WIDTH, 0),
+            top_left_position,
+            top_left_position + Vector(0, self.HEIGHT),
+            top_left_position + Vector(self.WIDTH, self.HEIGHT),
+            top_left_position + Vector(self.WIDTH, 0),
         ]
 
     def hit(self, ball):
@@ -457,27 +459,71 @@ class Brick(object):
         :return: Boolean value.
 
         """
-        maximum_distance = float("-inf")
+        impact_vector = Vector(0, 0)
 
-        # Compute normalized distance between ball and brick.
-        distance = ball.position - self.position
-        magnitude = abs(distance)
-        normalized_distance = distance / magnitude
+        # Horizontal axis
+        min_brick, max_brick = float("+inf"), float("-inf")
+        min_ball = ball.position.x - ball.RADIUS
+        max_ball = ball.position.x + ball.RADIUS
 
         for vertex in self.vertices():
-            delta_vector = vertex - self.position
-            projection = delta_vector.dot(normalized_distance)
+            projection = vertex.dot(Vector(1, 0))
+            min_brick = min(min_brick, projection)
+            max_brick = max(max_brick, projection)
 
-            if maximum_distance < projection:
-                maximum_distance = projection
+        if not (max_brick >= min_ball and max_ball >= min_brick):
+            return False
 
-        # TODO: Improve collision detection for rectangle
+        x = min(max_ball - min_brick, max_brick - min_ball)
+        impact_vector += Vector(x, 0)
 
-        if not magnitude - maximum_distance - ball.RADIUS > 0 and magnitude > 0:
-            ball.bounce_vertical()
-            return True
+        # Vertical axis
+        min_brick, max_brick = float("+inf"), float("-inf")
+        min_ball = ball.position.y - ball.RADIUS
+        max_ball = ball.position.y + ball.RADIUS
 
-        return False
+        for vertex in self.vertices():
+            projection = vertex.dot(Vector(0, 1))
+            min_brick = min(min_brick, projection)
+            max_brick = max(max_brick, projection)
+
+        if not (max_brick >= min_ball and max_ball >= min_brick):
+            return False
+
+        y = min(max_ball - min_brick, max_brick - min_ball)
+        impact_vector += Vector(0, y)
+
+        # If collision is confirmed, compute push vector.
+        if impact_vector.x > impact_vector.y:
+            ball.motion_vector *= Vector(1, -1)
+        else:
+            ball.motion_vector *= Vector(-1, 1)
+
+        return True
+
+    def compute_push_vector_horizontal(self, ball, axis):
+        """Compute push vector if the ball collide with the brick on axis.
+
+        :param ball: Instance of :class:`Ball`.
+
+        :param axis: Instance of :class:`~arcade_nuke.utility.Vector`
+            representing a unit vector of the horizontal or vertical axis.
+
+        :return: Instance of :class:`~arcade_nuke.utility.Vector` or None.
+
+        """
+
+    def compute_push_vector_vertical(self, ball, axis):
+        """Compute push vector if the ball collide with the brick on axis.
+
+        :param ball: Instance of :class:`Ball`.
+
+        :param axis: Instance of :class:`~arcade_nuke.utility.Vector`
+            representing a unit vector of the horizontal or vertical axis.
+
+        :return: Instance of :class:`~arcade_nuke.utility.Vector` or None.
+
+        """
 
     def destroy(self):
         """Delete node."""
