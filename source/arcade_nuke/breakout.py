@@ -1,11 +1,14 @@
 # :coding: utf-8
 
-import uuid
-
 import nuke
 from PySide2 import QtGui, QtWidgets, QtCore
 
+import arcade_nuke.utility
 from arcade_nuke.utility import Vector
+
+
+class GameOver(Exception):
+    """Exception to raise when the game is over."""
 
 
 class Game(object):
@@ -21,8 +24,8 @@ class Game(object):
         # Setup elements of game.
         self._field = Field(x=0, y=0, width=47, height=30, padding=10)
         self._paddle = Paddle(
-            x=self._field.center_x,
-            y=self._field.bottom_edge - 20,
+            x=self._field.center_x - Paddle.WIDTH / 2,
+            y=self._field.bottom_edge - 25,
         )
         self._ball = Ball(
             x=self._field.center_x,
@@ -75,9 +78,16 @@ class Game(object):
             lambda: self._brick_manager.hit_brick(self._ball)
         ]
 
-        for callback in callbacks:
-            if callback:
-                break
+        try:
+            for callback in callbacks:
+                if callback():
+                    break
+
+        except GameOver:
+            self._ball.destroy()
+            self.stop()
+
+            self._initialized = False
 
 
 class Field(object):
@@ -107,7 +117,7 @@ class Field(object):
         for index in range(width):
             self._units.append(
                 dict(
-                    name=str(uuid.uuid4()),
+                    name=arcade_nuke.utility.generate_name(),
                     position=Vector(x + (self.UNIT.x + padding) * index, y)
                 )
             )
@@ -116,7 +126,7 @@ class Field(object):
         for index in range(1, height):
             self._units.append(
                 dict(
-                    name=str(uuid.uuid4()),
+                    name=arcade_nuke.utility.generate_name(),
                     position=Vector(x, y + (self.UNIT.x + padding) * index)
                 )
             )
@@ -125,7 +135,7 @@ class Field(object):
         for index in range(1, height):
             self._units.append(
                 dict(
-                    name=str(uuid.uuid4()),
+                    name=arcade_nuke.utility.generate_name(),
                     position=Vector(
                         x + (self.UNIT.x + padding) * (width - 1),
                         y + (self.UNIT.y + padding) * index
@@ -137,7 +147,7 @@ class Field(object):
         for index in range(width):
             self._units.append(
                 dict(
-                    name=str(uuid.uuid4()),
+                    name=arcade_nuke.utility.generate_name(),
                     position=Vector(
                         x + (self.UNIT.x + padding) * index,
                         y + (self.UNIT.y + padding) * height
@@ -210,9 +220,12 @@ class Field(object):
             ball.motion_vector *= Vector(-1, 1)
             return True
 
-        if ball.position.y > self._bottom or ball.position.y < self._top:
+        if ball.position.y < self._top:
             ball.motion_vector *= Vector(1, -1)
             return True
+
+        if ball.position.y > self._bottom:
+            raise GameOver("Failed!")
 
         return False
 
@@ -221,7 +234,7 @@ class Ball(object):
     """Object managing the ball."""
 
     #: Unique name of the ball.
-    NAME = uuid.uuid4().hex
+    NAME = arcade_nuke.utility.generate_name()
 
     #: Radius of the Dot node representing the ball.
     RADIUS = 5.5
@@ -236,9 +249,12 @@ class Ball(object):
         """
         self._initial_position = Vector(x, y)
         self._motion_vector = Vector(1, -3)
+        self._destroyed = False
 
     def reset(self):
         """Draw ball status."""
+        self._destroyed = False
+
         node = self._get_node()
         node.setXpos(self._initial_position.x)
         node.setYpos(self._initial_position.y)
@@ -267,6 +283,12 @@ class Ball(object):
         node.setXpos(int(round(x + self._motion_vector.x)))
         node.setYpos(int(round(y + self._motion_vector.y)))
 
+    def destroy(self):
+        """Destroy ball."""
+        node = self._get_node()
+        nuke.delete(node)
+        self._destroyed = True
+
     def _get_node(self):
         """Retrieve the the node representing the ball.
 
@@ -274,6 +296,9 @@ class Ball(object):
         name.
 
         """
+        if self._destroyed:
+            raise RuntimeError("Ball already destroyed...")
+
         node = nuke.toNode(self.NAME)
 
         if not node:
@@ -449,7 +474,7 @@ class Brick(object):
         :param label: Label of the brick.
 
         """
-        self._name = uuid.uuid4().hex
+        self._name = arcade_nuke.utility.generate_name()
         self._node_class = node_class
         self._label = label
         self._position = Vector(x, y)
@@ -457,10 +482,11 @@ class Brick(object):
 
     def reset(self):
         """Reset brick status."""
+        self._destroyed = False
+
         node = self._get_node()
         node.setXpos(self._position.x)
         node.setYpos(self._position.y)
-        self._destroyed = False
 
     @property
     def position(self):
