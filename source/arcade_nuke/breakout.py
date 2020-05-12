@@ -15,7 +15,7 @@ class Game(object):
     def __init__(self):
         """Initialize the game."""
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(10)
+        self._timer.setInterval(5)
         self._timer.timeout.connect(self._play)
 
         # Setup elements of game.
