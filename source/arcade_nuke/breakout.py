@@ -16,7 +16,7 @@ class Game(object):
         """Initialize the game."""
         self._timer = QtCore.QTimer()
         self._timer.setInterval(5)
-        self._timer.timeout.connect(self._play)
+        self._timer.timeout.connect(self._process)
 
         # Setup elements of game.
         self._field = Field(x=0, y=0, width=47, height=30, padding=10)
@@ -58,7 +58,7 @@ class Game(object):
 
         self._timer.stop()
 
-    def _play(self):
+    def _process(self):
         """Method called for each move of the game."""
         # Move the paddle according to the cursor position.
         self._paddle.move(
