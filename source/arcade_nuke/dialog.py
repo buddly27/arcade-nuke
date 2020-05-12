@@ -36,14 +36,18 @@ class Player(QtWidgets.QDialog):
 
         # Record state.
         self._running = False
+        self._initialized = False
 
         # Initiate state.
         self.reset()
 
+        # Grab keyboard as long as window is opened.
+        self.grabKeyboard()
+
     def reset(self):
         self._duration_timer.stop()
         self._duration_lbl.setText("{0:02}:{0:02}:{0:02}".format(0))
-        self._message_lbl.setText("Press `A` to start and pause the game")
+        self._message_lbl.setText("Press `1` to initialize the game")
 
         self._initiate_btn.setEnabled(True)
         self._play_btn.setEnabled(True)
@@ -54,6 +58,7 @@ class Player(QtWidgets.QDialog):
 
     def initiate_game(self):
         self._on_initiate(self._game_cbbox.currentText())
+        self._message_lbl.setText("Press `2` to start or pause the game")
 
     def start_playing(self):
         self._duration_timer.start()
@@ -82,28 +87,26 @@ class Player(QtWidgets.QDialog):
             "{:02}:{:02}:{:02}".format(hours, minutes, seconds)
         )
 
-    def mouseMoveEvent(self, event):
-        print(event)
-        return super(Player, self).mouseMoveEvent(event)
-
     def event(self, event):
-        if (
-            isinstance(event, QtGui.QKeyEvent)
-            and event.key() == QtCore.Qt.Key_Escape
-        ):
-            self.stop_playing()
-
-            # Bi-pass QWidget logic to prevent window to close.
-            return False
-
-        elif (
-            isinstance(event, QtGui.QKeyEvent)
-            and event.key() == QtCore.Qt.Key_A
-        ):
-            if not self._running:
-                self.start_playing()
-            else:
+        if isinstance(event, QtGui.QKeyEvent):
+            if event.key() == QtCore.Qt.Key_Escape:
                 self.stop_playing()
+
+                # Bi-pass QWidget logic to prevent window to close.
+                return False
+
+            elif event.key() == QtCore.Qt.Key_1:
+                self.initiate_game()
+
+            elif event.key() == QtCore.Qt.Key_2:
+                if not self._running:
+                    self.start_playing()
+                else:
+                    self.stop_playing()
+
+        # Release keyboard when exiting window.
+        if isinstance(event, QtGui.QCloseEvent):
+            self.releaseKeyboard()
 
         return super(Player, self).event(event)
 
@@ -117,7 +120,7 @@ class Player(QtWidgets.QDialog):
         layout.addWidget(self._game_cbbox)
 
         self._initiate_btn = QtWidgets.QPushButton(self)
-        self._initiate_btn.setStyleSheet("background-color: black")
+        self._initiate_btn.setStyleSheet("background-color: #222")
         self._initiate_btn.setText("Initiate")
         layout.addWidget(self._initiate_btn)
 
