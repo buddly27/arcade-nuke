@@ -3,8 +3,8 @@
 import nuke
 from PySide2 import QtGui, QtWidgets, QtCore
 
-import arcade_nuke.utility
-from arcade_nuke.utility import Vector
+import arcade_nuke.node
+from arcade_nuke.node import Vector
 
 
 class GameOver(Exception):
@@ -22,19 +22,8 @@ class Game(object):
         self._timer.timeout.connect(self._process)
 
         # Setup elements of game.
-        self._field = Field(x=0, y=0, width=47, height=30, padding=10)
-        self._paddle = Paddle(
-            x=self._field.center_x - Paddle.WIDTH / 2,
-            y=self._field.bottom_edge - 25,
-        )
-        self._ball = Ball(
-            x=self._field.center_x,
-            y=self._field.bottom_edge - 25
-        )
-        self._brick_manager = BrickManager(
-            x=self._field.left_edge + 30,
-            y=self._field.top_edge + 20
-        )
+        self._setup_field()
+        self._setup_brick_pattern()
 
         self._initialized = False
 
@@ -43,7 +32,9 @@ class Game(object):
         self._field.reset()
         self._paddle.reset()
         self._ball.reset()
-        self._brick_manager.reset()
+
+        for brick in self._brick_mapping.values():
+            brick.reset()
 
         self._initialized = True
 
@@ -73,15 +64,8 @@ class Game(object):
         # Move the ball according to its motion vector.
         self._ball.move()
 
-        callbacks = [
-            lambda: self._field.hit_wall(self._ball),
-            lambda: self._brick_manager.hit_brick(self._ball)
-        ]
-
         try:
-            for callback in callbacks:
-                if callback():
-                    break
+            self._check_collision()
 
         except GameOver:
             self._ball.destroy()
@@ -89,12 +73,89 @@ class Game(object):
 
             self._initialized = False
 
+    def _setup_field(self):
+        """Initialize game field."""
+        self._field = Field(x=0, y=0, width=47, height=30, padding=10)
+
+        self._paddle = Paddle(
+            x=self._field.center_x - Paddle.width() / 2,
+            y=self._field.bottom_edge - 25,
+        )
+
+        self._ball = Ball(
+            x=self._field.center_x,
+            y=self._field.bottom_edge - 25
+        )
+
+    def _setup_brick_pattern(self):
+        """Initialize brick patterns."""
+        self._brick_mapping = {}
+
+        # Initial top-left position.
+        x = self._field.left_edge + 30
+        y = self._field.top_edge + 20
+
+        # Number of bricks on the X axis.
+        width = 10
+
+        # Padding between each brick on both axis.
+        padding_h = 10
+        padding_v = 8
+
+        # Node classes to use for each line of bricks.
+        node_classes = [
+            "Grade", "Roto", "Glow", "AddMix", "Write", "Shuffle", "Noise"
+        ]
+
+        for y_index, node_class in enumerate(node_classes):
+            for x_index in range(width):
+                label = str((y_index * width) + x_index)
+                brick = Brick(
+                    x=x + (Brick.width() + padding_h) * x_index, y=y,
+                    node_class=node_class, label=label
+                )
+                self._brick_mapping[label] = brick
+
+            y += (Brick.height() + padding_v)
+
+    def _check_collision(self):
+        """Indicate whether the *ball* hit one of the game elements.
+        """
+        # Check collision with the wall of the field.
+        if (
+            self._ball.position.x > self._field.right_edge or
+            self._ball.position.x < self._field.left_edge
+        ):
+            self._ball.motion_vector *= Vector(-1, 1)
+            return
+
+        if self._ball.position.y < self._field.top_edge:
+            self._ball.motion_vector *= Vector(1, -1)
+            return
+
+        if self._ball.position.y > self._field.bottom_edge:
+            raise GameOver("Failed!")
+
+        # Check collision with the bricks.
+        for label, brick in self._brick_mapping.items():
+            push_vector = arcade_nuke.node.collision(self._ball, brick)
+            if push_vector is not None:
+                print(push_vector)
+
+                self._ball.motion_vector *= push_vector
+
+                # Destroy brick
+                brick.destroy()
+                del self._brick_mapping[label]
+
+        # Check collision with the paddle.
+        push_vector = arcade_nuke.node.collision(self._ball, self._paddle)
+        if push_vector is not None:
+            self._ball.motion_vector *= push_vector
+
 
 class Field(object):
     """Object managing the field of the game."""
-
-    #: Size of the Dot node representing the field units.
-    UNIT = Vector(11, 11)
 
     def __init__(self, x, y, width, height, padding):
         """Initialize the field.
@@ -115,68 +176,44 @@ class Field(object):
 
         # Units representing top wall.
         for index in range(width):
-            self._units.append(
-                dict(
-                    name=arcade_nuke.utility.generate_name(),
-                    position=Vector(x + (self.UNIT.x + padding) * index, y)
-                )
-            )
+            unit = FieldUnit(x + (FieldUnit.width() + padding) * index, y)
+            self._units.append(unit)
 
         # Units representing left wall.
         for index in range(1, height):
-            self._units.append(
-                dict(
-                    name=arcade_nuke.utility.generate_name(),
-                    position=Vector(x, y + (self.UNIT.x + padding) * index)
-                )
-            )
+            unit = FieldUnit(x, y + (FieldUnit.height() + padding) * index)
+            self._units.append(unit)
 
         # Units representing right wall.
         for index in range(1, height):
-            self._units.append(
-                dict(
-                    name=arcade_nuke.utility.generate_name(),
-                    position=Vector(
-                        x + (self.UNIT.x + padding) * (width - 1),
-                        y + (self.UNIT.y + padding) * index
-                    )
-                )
+            unit = FieldUnit(
+                x + (FieldUnit.width() + padding) * (width - 1),
+                y + (FieldUnit.height() + padding) * index
             )
+            self._units.append(unit)
 
         # Units representing bottom wall.
         for index in range(width):
-            self._units.append(
-                dict(
-                    name=arcade_nuke.utility.generate_name(),
-                    position=Vector(
-                        x + (self.UNIT.x + padding) * index,
-                        y + (self.UNIT.y + padding) * height
-                    )
-                )
+            unit = FieldUnit(
+                x + (FieldUnit.width() + padding) * index,
+                y + (FieldUnit.height() + padding) * height
             )
+            self._units.append(unit)
 
         # Compute edges.
-        self._top = y + self.UNIT.y
-        self._right = x + (self.UNIT.x + padding) * (width - 1) - self.UNIT.x
-        self._bottom = y + (self.UNIT.y + padding) * height - self.UNIT.y
-        self._left = x + self.UNIT.x
+        self._top = y + FieldUnit.height()
+        self._left = x + FieldUnit.width()
+        self._right = (
+            x + (FieldUnit.width() + padding) * (width - 1) - FieldUnit.width()
+        )
+        self._bottom = (
+            y + (FieldUnit.height() + padding) * height - FieldUnit.height()
+        )
 
     def reset(self):
         """Reset field."""
         for unit in self._units:
-            node = nuke.toNode(unit["name"])
-
-            if not node:
-                nuke.nodes.Dot(
-                    name=unit["name"],
-                    xpos=unit["position"].x,
-                    ypos=unit["position"].y,
-                    hide_input=True
-                )
-
-            else:
-                node.setXpos(unit["position"].x)
-                node.setYpos(unit["position"].y)
+            unit.reset()
 
         # Zoom on the field
         nuke.zoom(0)
@@ -206,64 +243,34 @@ class Field(object):
         """Return the top edge of the field."""
         return self._top
 
-    def hit_wall(self, ball):
-        """Indicate whether the *ball* hit one of the wall.
 
-        Modify the ball direction accordingly if necessary.
+class FieldUnit(arcade_nuke.node.DotNode):
+    """Object managing the field unit."""
 
-        :param ball: Instance of :class:`Ball`.
-
-        :return: Boolean value.
-
-        """
-        if ball.position.x > self._right or ball.position.x < self._left:
-            ball.motion_vector *= Vector(-1, 1)
-            return True
-
-        if ball.position.y < self._top:
-            ball.motion_vector *= Vector(1, -1)
-            return True
-
-        if ball.position.y > self._bottom:
-            raise GameOver("Failed!")
-
-        return False
+    @property
+    def label(self):
+        """Return label of the node."""
+        return "field_unit"
 
 
-class Ball(object):
+class Ball(arcade_nuke.node.DotNode):
     """Object managing the ball."""
-
-    #: Unique name of the ball.
-    NAME = arcade_nuke.utility.generate_name()
-
-    #: Radius of the Dot node representing the ball.
-    RADIUS = 5.5
 
     def __init__(self, x, y):
         """Initialize the ball.
 
-        :param x: Initial position of the ball on the X axis.
+        :param x: Initial position of left corner of the node on the X axis.
 
-        :param y: Initial position of the ball on the Y axis.
+        :param y: Initial position of top corner of the node on the Y axis.
 
         """
-        self._initial_position = Vector(x, y)
+        super(Ball, self).__init__(x, y)
         self._motion_vector = Vector(1, -3)
-        self._destroyed = False
-
-    def reset(self):
-        """Draw ball status."""
-        self._destroyed = False
-
-        node = self._get_node()
-        node.setXpos(self._initial_position.x)
-        node.setYpos(self._initial_position.y)
 
     @property
-    def position(self):
-        """Return the middle position the ball as a Vector."""
-        node = self._get_node()
-        return Vector(node.xpos(), node.ypos()) + self.RADIUS
+    def label(self):
+        """Return label of the node."""
+        return "ball"
 
     @property
     def motion_vector(self):
@@ -277,75 +284,23 @@ class Ball(object):
 
     def move(self):
         """Move the ball following the motion vector."""
-        node = self._get_node()
-        x = self.position.x - self.RADIUS
-        y = self.position.y - self.RADIUS
-        node.setXpos(int(round(x + self._motion_vector.x)))
-        node.setYpos(int(round(y + self._motion_vector.y)))
-
-    def destroy(self):
-        """Destroy ball."""
-        node = self._get_node()
-        nuke.delete(node)
-        self._destroyed = True
-
-    def _get_node(self):
-        """Retrieve the the node representing the ball.
-
-        Create the ball if necessary at the initial position using its unique
-        name.
-
-        """
-        if self._destroyed:
-            raise RuntimeError("Ball already destroyed...")
-
-        node = nuke.toNode(self.NAME)
-
-        if not node:
-            node = nuke.nodes.Dot(
-                name=self.NAME,
-                xpos=self._initial_position.x,
-                ypos=self._initial_position.y,
-                hide_input=True
-            )
-
-            # Reset motion vector.
-            self._motion_vector = Vector(1, -3)
-
-        return node
+        node = self.node()
+        node.setXpos(int(round(self.position.x + self._motion_vector.x)))
+        node.setYpos(int(round(self.position.y + self._motion_vector.y)))
 
 
-class Paddle(object):
+class Paddle(arcade_nuke.node.RectangleNode):
     """Object managing the paddle."""
 
-    #: Width of the Viewer node representing the paddle.
-    WIDTH = 70
-
-    #: Height of the node representing the paddle.
-    HEIGHT = 17
-
-    def __init__(self, x, y):
-        """Initialize the paddle.
-
-        :param x: Initial position of the paddle on the X axis.
-
-        :param y: Initial position of the paddle on the Y axis.
-
-        """
-        self._position = Vector(x, y)
-
-    def reset(self):
-        """Reset paddle status."""
-        node = self._get_node()
-        node.setXpos(self._position.x)
-        node.setYpos(self._position.y)
+    @property
+    def label(self):
+        """Return label of the node."""
+        return "paddle"
 
     @property
-    def position(self):
-        """Return the middle position the paddle as Vector."""
-        node = self._get_node()
-        position = Vector(node.xpos(), node.ypos())
-        return position + Vector(self.WIDTH/2, self.HEIGHT/2)
+    def node_class(self):
+        """Return class of the node."""
+        return "Viewer"
 
     def move(self, y, right_edge, left_edge):
         """Move the paddle on the X axis within the limit of the field.
@@ -361,106 +316,15 @@ class Paddle(object):
         """
         cursor = QtGui.QCursor.pos()
 
-        node = self._get_node()
+        node = self.node()
 
-        right_edge -= self.WIDTH
+        right_edge -= self.width()
         node.setXpos(min(max(cursor.x(), left_edge), right_edge))
         node.setYpos(y)
 
-    def _get_node(self):
-        """Retrieve the the node representing the paddle.
 
-        Create the paddle if necessary.
-
-        """
-        nodes = nuke.allNodes("Viewer")
-        if not len(nodes):
-            nodes = [
-                nuke.nodes.Viewer(
-                    xpos=self._position.x,
-                    ypos=self._position.y
-                )
-            ]
-        return nodes[0]
-
-
-class BrickManager(object):
-    """Object managing the brick pattern to destroy."""
-
-    def __init__(self, x, y):
-        """Initialize the brick pattern.
-
-        :param x: Position of the left edge of the brick pattern on the X axis.
-
-        :param y: Position of the top edge of the brick pattern on the Y axis.
-
-        """
-        # Number of bricks on the X axis.
-        width = 10
-
-        # Padding between each brick on both axis.
-        padding_h = 10
-        padding_v = 8
-
-        # Node classes to use for each line of bricks.
-        node_classes = [
-            "Grade",
-            "Roto",
-            "Glow",
-            "AddMix",
-            "Write",
-            "Shuffle",
-            "Noise"
-        ]
-
-        # Mapping recording each brick per unique name.
-        self._mapping = {}
-
-        for y_index, node_class in enumerate(node_classes):
-            for x_index in range(width):
-                label = str((y_index * width) + x_index)
-                brick = Brick(
-                    x=x + (Brick.WIDTH + padding_h) * x_index, y=y,
-                    node_class=node_class,
-                    label=label
-                )
-                self._mapping[label] = brick
-
-            y += (Brick.HEIGHT + padding_v)
-
-    def reset(self):
-        """Draw brick pattern status."""
-        for brick in self._mapping.values():
-            brick.reset()
-
-    def hit_brick(self, ball):
-        """Indicate whether the *ball* hit one of the bricks.
-
-        Destroy the brick and modify the ball direction accordingly if
-        necessary.
-
-        :param ball: Instance of :class:`Ball`.
-
-        :return: Boolean value.
-
-        """
-        for label, brick in self._mapping.items():
-            if brick.hit(ball):
-                brick.destroy()
-                del self._mapping[label]
-                return True
-
-        return False
-
-
-class Brick(object):
+class Brick(arcade_nuke.node.RectangleNode):
     """Object managing a single brick."""
-
-    #: Width of the node representing the brick.
-    WIDTH = 79
-
-    #: Height of the node representing the brick.
-    HEIGHT = 17
 
     def __init__(self, x, y, node_class, label):
         """Initialize the brick.
@@ -474,114 +338,22 @@ class Brick(object):
         :param label: Label of the brick.
 
         """
-        self._name = arcade_nuke.utility.generate_name()
+        super(Brick, self).__init__(x, y)
         self._node_class = node_class
         self._label = label
-        self._position = Vector(x, y)
-        self._destroyed = False
-
-    def reset(self):
-        """Reset brick status."""
-        self._destroyed = False
-
-        node = self._get_node()
-        node.setXpos(self._position.x)
-        node.setYpos(self._position.y)
 
     @property
-    def position(self):
-        """Return the middle position the brick as Vector."""
-        node = self._get_node()
-        position = Vector(node.xpos(), node.ypos())
-        return position + Vector(self.WIDTH/2, self.HEIGHT/2)
+    def label(self):
+        """Return label of the node."""
+        return "brick_{}".format(self._label)
 
-    def vertices(self):
-        """Return all vertices of the brick as vectors."""
-        top_left_position = self.position - Vector(self.WIDTH/2, self.HEIGHT/2)
-        return [
-            top_left_position,
-            top_left_position + Vector(0, self.HEIGHT),
-            top_left_position + Vector(self.WIDTH, self.HEIGHT),
-            top_left_position + Vector(self.WIDTH, 0),
-        ]
+    @property
+    def node_class(self):
+        """Return class of the node."""
+        return self._node_class
 
-    def hit(self, ball):
-        """Indicate whether the *ball* hit the brick.
-
-        Destroy the brick and modify the ball direction accordingly if
-        necessary.
-
-        :param ball: Instance of :class:`Ball`.
-
-        :return: Boolean value.
-
-        """
-        impact_vector = Vector(0, 0)
-
-        # Horizontal axis
-        min_brick, max_brick = float("+inf"), float("-inf")
-        min_ball = ball.position.x - ball.RADIUS
-        max_ball = ball.position.x + ball.RADIUS
-
-        for vertex in self.vertices():
-            projection = vertex.dot(Vector(1, 0))
-            min_brick = min(min_brick, projection)
-            max_brick = max(max_brick, projection)
-
-        if not (max_brick >= min_ball and max_ball >= min_brick):
-            return False
-
-        x = min(max_ball - min_brick, max_brick - min_ball)
-        impact_vector += Vector(x, 0)
-
-        # Vertical axis
-        min_brick, max_brick = float("+inf"), float("-inf")
-        min_ball = ball.position.y - ball.RADIUS
-        max_ball = ball.position.y + ball.RADIUS
-
-        for vertex in self.vertices():
-            projection = vertex.dot(Vector(0, 1))
-            min_brick = min(min_brick, projection)
-            max_brick = max(max_brick, projection)
-
-        if not (max_brick >= min_ball and max_ball >= min_brick):
-            return False
-
-        y = min(max_ball - min_brick, max_brick - min_ball)
-        impact_vector += Vector(0, y)
-
-        # If collision is confirmed, compute push vector.
-        if impact_vector.x > impact_vector.y:
-            ball.motion_vector *= Vector(1, -1)
-        else:
-            ball.motion_vector *= Vector(-1, 1)
-
-        return True
-
-    def destroy(self):
-        """Delete node."""
-        node = self._get_node()
-        nuke.delete(node)
-        self._destroyed = True
-
-    def _get_node(self):
-        """Retrieve the the node representing the brick.
-
-        Create the brick if necessary.
-
-        """
-        if self._destroyed:
-            raise RuntimeError("Brick already destroyed...")
-
-        node = nuke.toNode(self._name)
-
-        if not node:
-            node = getattr(nuke.nodes, self._node_class)(
-                name=self._name,
-                xpos=self._position.x,
-                ypos=self._position.y,
-                hide_input=True
-            )
-            node["autolabel"].setValue(self._label)
-
+    def create_node(self):
+        """Create node."""
+        node = super(Brick, self).create_node()
+        node["autolabel"].setValue(self._label)
         return node
