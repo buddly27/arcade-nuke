@@ -18,35 +18,29 @@ class Game(object):
         self._timer.setInterval(10)
         self._timer.timeout.connect(self._play)
 
-        self._field = None
-        self._paddle = None
-        self._ball = None
-        self._brick_manager = None
+        # Setup elements of game.
+        self._field = Field(x=0, y=0, width=47, height=30, padding=10)
+        self._paddle = Paddle(
+            x=self._field.center_x,
+            y=self._field.bottom_edge - 20,
+        )
+        self._ball = Ball(
+            x=self._field.center_x,
+            y=self._field.bottom_edge - 25
+        )
+        self._brick_manager = BrickManager(
+            x=self._field.left_edge + 30,
+            y=self._field.top_edge + 20
+        )
 
         self._initialized = False
 
     def initialize(self):
         """Initialize the game."""
-        # Initialize the field.
-        self._field = Field(x=0, y=0, width=47, height=30, padding=10)
-
-        # Initialize the paddle.
-        self._paddle = Paddle(
-            x=self._field.center_x,
-            y=self._field.bottom_edge - 20,
-        )
-
-        # Initialize the ball.
-        self._ball = Ball(
-            x=self._paddle.position.x,
-            y=self._paddle.position.y - 20
-        )
-
-        # Initialize the brick pattern to destroy.
-        self._brick_manager = BrickManager(
-            x=self._field.left_edge + 30,
-            y=self._field.top_edge + 20
-        )
+        self._field.reset()
+        self._paddle.reset()
+        self._ball.reset()
+        self._brick_manager.reset()
 
         self._initialized = True
 
@@ -90,11 +84,8 @@ class Game(object):
 class Field(object):
     """Object managing the field of the game."""
 
-    #: Width of the Dot node representing the field units.
-    DOT_WIDTH = 11
-
-    #: Height of the Dot node representing the field units.
-    DOT_HEIGHT = 11
+    #: Size of the Dot node representing the field units.
+    UNIT = Vector(11, 11)
 
     def __init__(self, x, y, width, height, padding):
         """Initialize the field.
@@ -111,46 +102,72 @@ class Field(object):
             field.
 
         """
-        self._top = y + self.DOT_HEIGHT
-        self._right = (
-            x + (self.DOT_WIDTH + padding) * (width - 1) - self.DOT_WIDTH
-        )
-        self._bottom = (
-            y + (self.DOT_HEIGHT + padding) * height - self.DOT_HEIGHT
-        )
-        self._left = x + self.DOT_WIDTH
+        self._units = []
 
-        # TOP
+        # Units representing top wall.
         for index in range(width):
-            nuke.nodes.Dot(
-                xpos=x + (self.DOT_WIDTH + padding) * index,
-                ypos=y,
-                hide_input=True
+            self._units.append(
+                dict(
+                    name=str(uuid.uuid4()),
+                    position=Vector(x + (self.UNIT.x + padding) * index, y)
+                )
             )
 
-        # LEFT
+        # Units representing left wall.
         for index in range(1, height):
-            nuke.nodes.Dot(
-                xpos=x,
-                ypos=y + (self.DOT_WIDTH + padding) * index,
-                hide_input=True
+            self._units.append(
+                dict(
+                    name=str(uuid.uuid4()),
+                    position=Vector(x, y + (self.UNIT.x + padding) * index)
+                )
             )
 
-        # RIGHT
+        # Units representing right wall.
         for index in range(1, height):
-            nuke.nodes.Dot(
-                xpos=x + (self.DOT_WIDTH + padding) * (width - 1),
-                ypos=y + (self.DOT_HEIGHT + padding) * index,
-                hide_input=True
+            self._units.append(
+                dict(
+                    name=str(uuid.uuid4()),
+                    position=Vector(
+                        x + (self.UNIT.x + padding) * (width - 1),
+                        y + (self.UNIT.y + padding) * index
+                    )
+                )
             )
 
-        # BOTTOM
+        # Units representing bottom wall.
         for index in range(width):
-            nuke.nodes.Dot(
-                xpos=x + (self.DOT_WIDTH + padding) * index,
-                ypos=y + (self.DOT_HEIGHT + padding) * height,
-                hide_input=True
+            self._units.append(
+                dict(
+                    name=str(uuid.uuid4()),
+                    position=Vector(
+                        x + (self.UNIT.x + padding) * index,
+                        y + (self.UNIT.y + padding) * height
+                    )
+                )
             )
+
+        # Compute edges.
+        self._top = y + self.UNIT.y
+        self._right = x + (self.UNIT.x + padding) * (width - 1) - self.UNIT.x
+        self._bottom = y + (self.UNIT.y + padding) * height - self.UNIT.y
+        self._left = x + self.UNIT.x
+
+    def reset(self):
+        """Reset field."""
+        for unit in self._units:
+            node = nuke.toNode(unit["name"])
+
+            if not node:
+                nuke.nodes.Dot(
+                    name=unit["name"],
+                    xpos=unit["position"].x,
+                    ypos=unit["position"].y,
+                    hide_input=True
+                )
+
+            else:
+                node.setXpos(unit["position"].x)
+                node.setYpos(unit["position"].y)
 
         # Zoom on the field
         nuke.zoom(0)
@@ -221,7 +238,11 @@ class Ball(object):
         self._initial_position = Vector(x, y)
         self._motion_vector = Vector(1, -3)
 
-        self._get_node()
+    def reset(self):
+        """Draw ball status."""
+        node = self._get_node()
+        node.setXpos(self._initial_position.x)
+        node.setYpos(self._initial_position.y)
 
     @property
     def position(self):
@@ -289,6 +310,8 @@ class Paddle(object):
         """
         self._position = Vector(x, y)
 
+    def reset(self):
+        """Reset paddle status."""
         node = self._get_node()
         node.setXpos(self._position.x)
         node.setYpos(self._position.y)
@@ -373,14 +396,18 @@ class BrickManager(object):
             for x_index in range(width):
                 label = str((y_index * width) + x_index)
                 brick = Brick(
-                    x=x + (Brick.WIDTH + padding_h) * x_index,
-                    y=y,
+                    x=x + (Brick.WIDTH + padding_h) * x_index, y=y,
                     node_class=node_class,
                     label=label
                 )
                 self._mapping[label] = brick
 
             y += (Brick.HEIGHT + padding_v)
+
+    def reset(self):
+        """Draw brick pattern status."""
+        for brick in self._mapping.values():
+            brick.reset()
 
     def hit_brick(self, ball):
         """Indicate whether the *ball* hit one of the bricks.
@@ -427,9 +454,12 @@ class Brick(object):
         self._node_class = node_class
         self._label = label
         self._position = Vector(x, y)
-
         self._destroyed = False
+
+    def reset(self):
+        """Reset brick status."""
         self._get_node()
+        self._destroyed = False
 
     @property
     def position(self):
