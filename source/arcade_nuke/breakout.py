@@ -70,15 +70,14 @@ class Game(object):
         # Move the ball according to its motion vector.
         self._ball.move()
 
-        # Check whether the ball hit one of the walls of the field.
-        if self._field.hit_wall(self._ball):
-            print("Collision with field")
-            return
+        callbacks = [
+            lambda: self._field.hit_wall(self._ball),
+            lambda: self._brick_manager.hit_brick(self._ball)
+        ]
 
-        # Check whether the ball hits one brick.
-        elif self._brick_manager.hit_brick(self._ball):
-            print("Brick destroyed!!!")
-            return
+        for callback in callbacks:
+            if callback:
+                break
 
 
 class Field(object):
@@ -458,7 +457,9 @@ class Brick(object):
 
     def reset(self):
         """Reset brick status."""
-        self._get_node()
+        node = self._get_node()
+        node.setXpos(self._position.x)
+        node.setYpos(self._position.y)
         self._destroyed = False
 
     @property
@@ -530,30 +531,6 @@ class Brick(object):
             ball.motion_vector *= Vector(-1, 1)
 
         return True
-
-    def compute_push_vector_horizontal(self, ball, axis):
-        """Compute push vector if the ball collide with the brick on axis.
-
-        :param ball: Instance of :class:`Ball`.
-
-        :param axis: Instance of :class:`~arcade_nuke.utility.Vector`
-            representing a unit vector of the horizontal or vertical axis.
-
-        :return: Instance of :class:`~arcade_nuke.utility.Vector` or None.
-
-        """
-
-    def compute_push_vector_vertical(self, ball, axis):
-        """Compute push vector if the ball collide with the brick on axis.
-
-        :param ball: Instance of :class:`Ball`.
-
-        :param axis: Instance of :class:`~arcade_nuke.utility.Vector`
-            representing a unit vector of the horizontal or vertical axis.
-
-        :return: Instance of :class:`~arcade_nuke.utility.Vector` or None.
-
-        """
 
     def destroy(self):
         """Delete node."""
