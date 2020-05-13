@@ -3,23 +3,17 @@
 import nuke
 from PySide2 import QtGui, QtWidgets, QtCore
 
+import arcade_nuke.base
 import arcade_nuke.node
-from arcade_nuke.node import Vector
 
 
-class GameOver(Exception):
-    """Exception to raise when the game is over."""
-
-
-class Game(object):
+class BreakoutGame(arcade_nuke.base.BaseGame):
     """Object managing all elements of the game.
     """
 
     def __init__(self):
         """Initialize the game."""
-        self._timer = QtCore.QTimer()
-        self._timer.setInterval(0)
-        self._timer.timeout.connect(self._process)
+        super(BreakoutGame, self).__init__()
 
         # Setup elements of game.
         self._setup_field()
@@ -29,28 +23,14 @@ class Game(object):
 
     def initialize(self):
         """Initialize the game."""
+        super(BreakoutGame, self).initialize()
+
         self._field.reset()
         self._paddle.reset()
         self._ball.reset()
 
-        for brick in self._brick_mapping.values():
+        for brick in self._bricks:
             brick.reset()
-
-        self._initialized = True
-
-    def start(self):
-        """Start the game."""
-        if not self._initialized:
-            return
-
-        self._timer.start()
-
-    def stop(self):
-        """Stop the game."""
-        if not self._initialized:
-            return
-
-        self._timer.stop()
 
     def _process(self):
         """Method called for each move of the game."""
@@ -67,9 +47,10 @@ class Game(object):
         try:
             self._check_collision()
 
-        except GameOver:
+        except arcade_nuke.base.GameOver:
             self._ball.destroy()
             self.stop()
+            self.signal.stopped.emit()
 
             self._initialized = False
 
@@ -84,12 +65,12 @@ class Game(object):
 
         self._ball = Ball(
             x=self._field.center_x,
-            y=self._field.bottom_edge - 25
+            y=self._field.bottom_edge - 40
         )
 
     def _setup_brick_pattern(self):
         """Initialize brick patterns."""
-        self._brick_mapping = {}
+        self._bricks = []
 
         # Initial top-left position.
         x = self._field.left_edge + 30
@@ -114,7 +95,7 @@ class Game(object):
                     x=x + (Brick.width() + padding_h) * x_index, y=y,
                     node_class=node_class, label=label
                 )
-                self._brick_mapping[label] = brick
+                self._bricks.append(brick)
 
             y += (Brick.height() + padding_v)
 
@@ -126,27 +107,34 @@ class Game(object):
             self._ball.position.x > self._field.right_edge or
             self._ball.position.x < self._field.left_edge
         ):
-            self._ball.motion_vector *= Vector(-1, 1)
+            self._ball.motion_vector *= arcade_nuke.node.Vector(-1, 1)
             return
 
         if self._ball.position.y < self._field.top_edge:
-            self._ball.motion_vector *= Vector(1, -1)
+            self._ball.motion_vector *= arcade_nuke.node.Vector(1, -1)
             return
 
         if self._ball.position.y > self._field.bottom_edge:
-            raise GameOver("Failed!")
+            raise arcade_nuke.base.GameOver("Failed!")
 
         # Check collision with the bricks.
-        for label, brick in self._brick_mapping.items():
+        bricks_destroyed = 0
+
+        for brick in self._bricks:
+            if brick.destroyed():
+                bricks_destroyed += 1
+                continue
+
             push_vector = arcade_nuke.node.collision(self._ball, brick)
             if push_vector is not None:
-                print(push_vector)
-
                 self._ball.motion_vector *= push_vector
 
                 # Destroy brick
                 brick.destroy()
-                del self._brick_mapping[label]
+
+        # Raise if all bricks are destroyed.
+        if len(self._bricks) == bricks_destroyed:
+            raise arcade_nuke.base.GameOver("Done!")
 
         # Check collision with the paddle.
         push_vector = arcade_nuke.node.collision(self._ball, self._paddle)
@@ -265,7 +253,7 @@ class Ball(arcade_nuke.node.DotNode):
 
         """
         super(Ball, self).__init__(x, y)
-        self._motion_vector = Vector(1, -3)
+        self._motion_vector = arcade_nuke.node.Vector(1, -3)
 
     @property
     def label(self):
@@ -287,6 +275,13 @@ class Ball(arcade_nuke.node.DotNode):
         node = self.node()
         node.setXpos(int(round(self.position.x + self._motion_vector.x)))
         node.setYpos(int(round(self.position.y + self._motion_vector.y)))
+
+    def reset(self):
+        """Reset node."""
+        super(Ball, self).reset()
+
+        # Reset motion vector.
+        self._motion_vector = arcade_nuke.node.Vector(1, -3)
 
 
 class Paddle(arcade_nuke.node.RectangleNode):

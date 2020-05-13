@@ -54,8 +54,12 @@ class BaseNode(object):
         position = self.position
         return position + Vector(self.width()/2, self.height()/2)
 
+    def destroyed(self):
+        """Indicate whether the node is destroyed."""
+        return self._destroyed
+
     def reset(self):
-        """Reset brick status."""
+        """Reset node."""
         self._destroyed = False
 
         node = self.node()

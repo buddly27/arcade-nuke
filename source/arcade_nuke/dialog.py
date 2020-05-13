@@ -5,17 +5,13 @@ from PySide2 import QtGui, QtWidgets, QtCore
 
 class Player(QtWidgets.QDialog):
 
-    def __init__(self, games, on_initiate, on_start, on_stop, parent=None):
+    def __init__(self, games, parent=None):
         super(Player, self).__init__(parent)
-
-        # Record callbacks.
-        self._on_initiate = on_initiate
-        self._on_start = on_start
-        self._on_stop = on_stop
+        self._games = games
 
         # Initiate UI and timer.
         self._setup_ui()
-        self._game_cbbox.addItems(games)
+        self._game_cbbox.addItems(games.keys())
         self._initiate_btn.clicked.connect(self.initiate_game)
         self._play_btn.clicked.connect(self.start_playing)
         self._stop_btn.clicked.connect(self.stop_playing)
@@ -34,15 +30,15 @@ class Player(QtWidgets.QDialog):
         self._elapsed_timer = QtCore.QElapsedTimer()
         self._elapsed_timer.start()
 
-        # Record state.
-        self._running = False
-        self._initialized = False
-
         # Initiate state.
         self.reset()
 
         # Grab keyboard as long as window is opened.
         self.grabKeyboard()
+
+    @property
+    def game(self):
+        return self._games[self._game_cbbox.currentText()]
 
     def reset(self):
         self._duration_timer.stop()
@@ -54,13 +50,18 @@ class Player(QtWidgets.QDialog):
         self._stop_btn.setEnabled(False)
         self._game_cbbox.setEnabled(True)
 
-        self._running = False
-
     def initiate_game(self):
-        self._on_initiate(self._game_cbbox.currentText())
+        self.game.initialize()
+        self.game.signal.stopped.connect(self.reset)
+
         self._message_lbl.setText("Press `2` to start or pause the game")
 
     def start_playing(self):
+        if not self.game.initialized() or self.game.running():
+            return
+
+        self.game.start()
+
         self._duration_timer.start()
         self._elapsed_timer.restart()
 
@@ -69,14 +70,12 @@ class Player(QtWidgets.QDialog):
         self._stop_btn.setEnabled(True)
         self._game_cbbox.setEnabled(False)
 
-        self._on_start(self._game_cbbox.currentText())
-
-        self._running = True
-
     def stop_playing(self):
-        self.reset()
+        if not self.game.running():
+            return
 
-        self._on_stop(self._game_cbbox.currentText())
+        self.game.stop()
+        self.reset()
 
     def _update_time(self):
         seconds = self._elapsed_timer.elapsed() / 1000
@@ -99,7 +98,7 @@ class Player(QtWidgets.QDialog):
                 self.initiate_game()
 
             elif event.key() == QtCore.Qt.Key_2:
-                if not self._running:
+                if not self.game.running():
                     self.start_playing()
                 else:
                     self.stop_playing()
