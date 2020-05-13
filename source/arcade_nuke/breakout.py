@@ -11,13 +11,22 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
     """Object managing all elements of the game.
     """
 
-    def __init__(self):
-        """Initialize the game."""
+    def __init__(self, brick_generator):
+        """Initialize the game.
+
+        :param brick_generator: Callback to draw the brick pattern.
+
+        """
         super(BreakoutGame, self).__init__()
 
         # Setup elements of game.
         self._setup_field()
-        self._setup_brick_pattern()
+
+        # Draw brick pattern.
+        self._bricks = brick_generator(
+            x=self._field.left_edge + 30,
+            y=self._field.top_edge + 20
+        )
 
         self._initialized = False
 
@@ -67,37 +76,6 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
             x=self._field.center_x,
             y=self._field.bottom_edge - 40
         )
-
-    def _setup_brick_pattern(self):
-        """Initialize brick patterns."""
-        self._bricks = []
-
-        # Initial top-left position.
-        x = self._field.left_edge + 30
-        y = self._field.top_edge + 20
-
-        # Number of bricks on the X axis.
-        width = 10
-
-        # Padding between each brick on both axis.
-        padding_h = 10
-        padding_v = 8
-
-        # Node classes to use for each line of bricks.
-        node_classes = [
-            "Grade", "Roto", "Glow", "AddMix", "Write", "Shuffle", "Noise"
-        ]
-
-        for y_index, node_class in enumerate(node_classes):
-            for x_index in range(width):
-                label = str((y_index * width) + x_index)
-                brick = Brick(
-                    x=x + (Brick.width() + padding_h) * x_index, y=y,
-                    node_class=node_class, label=label
-                )
-                self._bricks.append(brick)
-
-            y += (Brick.height() + padding_v)
 
     def _check_collision(self):
         """Indicate whether the *ball* hit one of the game elements.
@@ -352,3 +330,56 @@ class Brick(arcade_nuke.node.RectangleNode):
         node = super(Brick, self).create_node()
         node["autolabel"].setValue(self._label)
         return node
+
+
+def brick_generator1(x, y):
+    """Draw first brick pattern.
+
+    :param x: Position of the left edge of the field on the X axis.
+
+    :param y: Position of the top edge of the field on the Y axis.
+
+    +-----------------------------------------+
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    +-----------------------------------------+
+
+    """
+    bricks = []
+
+    # Number of bricks on the X axis.
+    width = 10
+
+    # Padding between each brick on both axis.
+    padding_h = 10
+    padding_v = 8
+
+    # Node classes to use for each line of bricks.
+    node_classes = [
+        "Grade", "Roto", "Glow", "AddMix", "Write", "Shuffle", "Noise"
+    ]
+
+    for y_index, node_class in enumerate(node_classes):
+        for x_index in range(width):
+            label = str((y_index * width) + x_index)
+            brick = Brick(
+                x=x + (Brick.width() + padding_h) * x_index, y=y,
+                node_class=node_class, label=label
+            )
+            bricks.append(brick)
+
+        y += (Brick.height() + padding_v)
+
+    return bricks

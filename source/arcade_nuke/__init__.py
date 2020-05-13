@@ -11,7 +11,9 @@ def open_dialog():
     parent = QtWidgets.QApplication.activeWindow()
 
     mapping = {
-        "Breakout 1": arcade_nuke.breakout.BreakoutGame()
+        "Breakout 1": arcade_nuke.breakout.BreakoutGame(
+            arcade_nuke.breakout.brick_generator1
+        )
     }
 
     _dialog = arcade_nuke.dialog.Player(games=mapping, parent=parent)
