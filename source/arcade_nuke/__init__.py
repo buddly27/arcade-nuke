@@ -12,7 +12,10 @@ def open_dialog():
 
     mapping = {
         "Breakout 1": arcade_nuke.breakout.BreakoutGame(
-            arcade_nuke.breakout.brick_generator1
+            generator=arcade_nuke.breakout.brick_generator1
+        ),
+        "Breakout 2": arcade_nuke.breakout.BreakoutGame(
+            generator=arcade_nuke.breakout.brick_generator2
         )
     }
 

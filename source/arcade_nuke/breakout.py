@@ -11,10 +11,10 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
     """Object managing all elements of the game.
     """
 
-    def __init__(self, brick_generator):
+    def __init__(self, generator):
         """Initialize the game.
 
-        :param brick_generator: Callback to draw the brick pattern.
+        :param generator: Callback to draw the brick pattern.
 
         """
         super(BreakoutGame, self).__init__()
@@ -23,9 +23,9 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
         self._setup_field()
 
         # Draw brick pattern.
-        self._bricks = brick_generator(
-            x=self._field.left_edge + 30,
-            y=self._field.top_edge + 20
+        self._bricks = generator(
+            x=self._field.left_edge,
+            y=self._field.top_edge
         )
 
         self._initialized = False
@@ -359,6 +359,10 @@ def brick_generator1(x, y):
     """
     bricks = []
 
+    # Initialize top-left position.
+    x += 30
+    y += 20
+
     # Number of bricks on the X axis.
     width = 10
 
@@ -381,5 +385,98 @@ def brick_generator1(x, y):
             bricks.append(brick)
 
         y += (Brick.height() + padding_v)
+
+    return bricks
+
+
+def brick_generator2(x, y):
+    """Draw first brick pattern.
+
+    :param x: Position of the left edge of the field on the X axis.
+
+    :param y: Position of the top edge of the field on the Y axis.
+
+    +-----------------------------------------+
+    |           +-+             +-+           |
+    |               +-+     +-+               |
+    |               +-+     +-+               |
+    |           +-+ +-+ +-+ +-+ +-+           |
+    |           +-+ +-+ +-+ +-+ +-+           |
+    |       +-+ +-+     +-+     +-+ +-+       |
+    |       +-+ +-+     +-+     +-+ +-+       |
+    |   +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+   |
+    |   +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+   |
+    |   +-+     +-+ +-+ +-+ +-+ +-+     +-+   |
+    |   +-+     +-+             +-+     +-+   |
+    |   +-+     +-+             +-+     +-+   |
+    |               +-+     +-+               |
+    |               +-+     +-+               |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    |                                         |
+    +-----------------------------------------+
+
+    """
+    bricks = []
+
+    # Initialize top-left position.
+    x += 80
+    y += 20
+
+    # Padding between each brick on both axis.
+    padding_h = 10
+    padding_v = 8
+
+    # Initialize index.
+    index = 0
+
+    # Draw antennas.
+    coordinates = [(2, 0), (6, 0), (3, 1), (5, 1), (3, 2), (5, 2)]
+    for index_x, index_y in coordinates:
+        brick = Brick(
+            x=x + (Brick.width() + padding_h) * index_x,
+            y=y + (Brick.height() + padding_v) * index_y,
+            node_class="Write", label=str(index)
+        )
+        bricks.append(brick)
+        index += 1
+
+    # Draw head.
+    coordinates = [
+        (2, 3), (3, 3), (4, 3), (5, 3), (6, 3),
+        (2, 4), (3, 4), (4, 4), (5, 4), (6, 4),
+        (1, 5), (2, 5), (4, 5), (6, 5), (7, 5),
+        (1, 6), (2, 6), (4, 6), (6, 6), (7, 6),
+        (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7),
+        (0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8),
+        (2, 9), (3, 9), (4, 9), (5, 9), (6, 9)
+    ]
+    for index_x, index_y in coordinates:
+        brick = Brick(
+            x=x + (Brick.width() + padding_h) * index_x,
+            y=y + (Brick.height() + padding_v) * index_y,
+            node_class="AddMix", label=str(index)
+        )
+        bricks.append(brick)
+        index += 1
+
+    # Draw feet.
+    coordinates = [
+        (0, 9), (8, 9),
+        (0, 10), (2, 10), (6, 10), (8, 10),
+        (0, 11), (2, 11), (6, 11), (8, 11),
+        (3, 12), (5, 12),
+        (3, 13), (5, 13),
+    ]
+    for index_x, index_y in coordinates:
+        brick = Brick(
+            x=x + (Brick.width() + padding_h) * index_x,
+            y=y + (Brick.height() + padding_v) * index_y,
+            node_class="Write", label=str(index)
+        )
+        bricks.append(brick)
+        index += 1
 
     return bricks
