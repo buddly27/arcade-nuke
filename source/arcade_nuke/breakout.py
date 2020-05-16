@@ -6,6 +6,7 @@ from PySide2 import QtGui, QtWidgets, QtCore
 import arcade_nuke.base
 import arcade_nuke.node
 import arcade_nuke.logic
+import arcade_nuke.utility
 
 
 class BreakoutGame(arcade_nuke.base.BaseGame):
@@ -29,6 +30,9 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
             y=self._field.top_edge
         )
 
+        # Record drawing of feedback
+        self._letter_points = []
+
         self._initialized = False
 
     def initialize(self):
@@ -41,6 +45,9 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
 
         for brick in self._bricks:
             brick.reset()
+
+        for point in self._letter_points:
+            point.destroy()
 
     def _process(self):
         """Method called for each move of the game."""
@@ -63,12 +70,12 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
             self.signal.stopped.emit()
 
             if not error.success:
-                arcade_nuke.base.draw_game_over(
+                self._letter_points = arcade_nuke.utility.draw_game_over(
                     x=self._field.left_edge + 200,
                     y=self._field.left_edge + 400
                 )
             else:
-                arcade_nuke.base.draw_win(
+                self._letter_points = arcade_nuke.utility.draw_win(
                     x=self._field.left_edge + 250,
                     y=self._field.left_edge + 250
                 )

@@ -146,6 +146,10 @@ class DotNode(BaseNode):
         """Return radius of node."""
         return 5.5
 
+    def label(self):
+        """Return label of the node."""
+        return "dot"
+
     @property
     def node_class(self):
         """Return class of the node."""
