@@ -5,6 +5,7 @@ from PySide2 import QtGui, QtWidgets, QtCore
 
 import arcade_nuke.base
 import arcade_nuke.node
+import arcade_nuke.logic
 
 
 class BreakoutGame(arcade_nuke.base.BaseGame):
@@ -103,9 +104,11 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
                 bricks_destroyed += 1
                 continue
 
-            push_vector = arcade_nuke.node.collision(self._ball, brick)
+            push_vector = arcade_nuke.logic.collision(self._ball, brick)
             if push_vector is not None:
-                self._ball.motion_vector *= push_vector
+                self._ball.motion_vector = arcade_nuke.logic.bounce(
+                    self._ball.motion_vector, push_vector
+                )
 
                 # Destroy brick
                 brick.destroy()
@@ -115,9 +118,11 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
             raise arcade_nuke.base.GameOver("Done!")
 
         # Check collision with the paddle.
-        push_vector = arcade_nuke.node.collision(self._ball, self._paddle)
+        push_vector = arcade_nuke.logic.collision(self._ball, self._paddle)
         if push_vector is not None:
-            self._ball.motion_vector *= push_vector
+            self._ball.motion_vector = arcade_nuke.logic.bounce(
+                self._ball.motion_vector, push_vector
+            )
 
 
 class Field(object):
@@ -231,38 +236,28 @@ class Ball(arcade_nuke.node.DotNode):
 
         """
         super(Ball, self).__init__(x, y)
-        self._motion_vector = arcade_nuke.node.Vector(1, -3)
+        self.motion_vector = arcade_nuke.node.Vector(1, -3)
 
     @property
     def label(self):
         """Return label of the node."""
         return "ball"
 
-    @property
-    def motion_vector(self):
-        """Return motion vector of the ball."""
-        return self._motion_vector
-
-    @motion_vector.setter
-    def motion_vector(self, value):
-        """Return motion vector of the ball."""
-        self._motion_vector = value
-
     def move(self):
         """Move the ball following the motion vector."""
         node = self.node()
-        node.setXpos(int(round(self.position.x + self._motion_vector.x)))
-        node.setYpos(int(round(self.position.y + self._motion_vector.y)))
+        node.setXpos(int(round(self.position.x + self.motion_vector.x)))
+        node.setYpos(int(round(self.position.y + self.motion_vector.y)))
 
     def reset(self):
         """Reset node."""
         super(Ball, self).reset()
 
         # Reset motion vector.
-        self._motion_vector = arcade_nuke.node.Vector(1, -3)
+        self.motion_vector = arcade_nuke.node.Vector(1, -3)
 
 
-class Paddle(arcade_nuke.node.RectangleNode):
+class Paddle(arcade_nuke.node.ViewerNode):
     """Object managing the paddle."""
 
     @property

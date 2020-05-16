@@ -2,9 +2,10 @@
 
 import abc
 import uuid
-import math
 
 import nuke
+
+from arcade_nuke.logic import Vector
 
 
 class BaseNode(object):
@@ -22,7 +23,13 @@ class BaseNode(object):
         """
         self._name = "node_{}".format(uuid.uuid4().hex)
         self._position = Vector(x, y)
+        self._motion_vector = Vector(0, 0)
+
         self._destroyed = False
+
+    def __repr__(self):
+        """Display representation of node"""
+        return "<Node(label={})>".format(self.label)
 
     @staticmethod
     def width():
@@ -49,10 +56,32 @@ class BaseNode(object):
         return Vector(node.xpos(), node.ypos())
 
     @property
+    def motion_vector(self):
+        """Return motion vector of the node."""
+        return self._motion_vector
+
+    @motion_vector.setter
+    def motion_vector(self, value):
+        """Return motion vector of the node."""
+        self._motion_vector = value
+
+    @property
     def middle_position(self):
         """Return current middle position the top-left corner of the node."""
         position = self.position
         return position + Vector(self.width()/2, self.height()/2)
+
+    @abc.abstractproperty
+    def normals(self):
+        """Return normals."""
+
+    @abc.abstractmethod
+    def projection(self, normal):
+        """Return minimum and maximum projection on the X axis.
+
+        :param normal: Normal vector to project onto.
+
+        """
 
     def destroyed(self):
         """Indicate whether the node is destroyed."""
@@ -96,22 +125,6 @@ class BaseNode(object):
         nuke.delete(node)
         self._destroyed = True
 
-    @abc.abstractmethod
-    def projection_x(self):
-        """Return minimum and maximum projection on the X axis.
-
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-
-    @abc.abstractmethod
-    def projection_y(self):
-        """Return minimum and maximum projection on the Y axis.
-
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-
 
 class DotNode(BaseNode):
     """Representation of a Dot node."""
@@ -138,24 +151,29 @@ class DotNode(BaseNode):
         """Return class of the node."""
         return "Dot"
 
-    def projection_x(self):
+    @property
+    def normals(self):
+        """Return normals."""
+        return []
+
+    def projection(self, normal):
         """Return minimum and maximum projection on the X axis.
 
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-        minimum = self.middle_position.x - self.radius()
-        maximum = self.middle_position.x + self.radius()
-        return minimum, maximum
-
-    def projection_y(self):
-        """Return minimum and maximum projection on the Y axis.
+        :param normal: Normal vector to project onto.
 
         :return: Tuple containing the minimum and maximum values.
 
         """
-        minimum = self.middle_position.y - self.radius()
-        maximum = self.middle_position.y + self.radius()
+        minimum, maximum = float("+inf"), float("-inf")
+
+        for vertex in [
+            self.middle_position - normal * self.radius(),
+            self.middle_position + normal * self.radius()
+        ]:
+            projection = vertex.dot(normal)
+            minimum = min(minimum, projection)
+            maximum = max(maximum, projection)
+
         return minimum, maximum
 
 
@@ -174,6 +192,12 @@ class RectangleNode(BaseNode):
         """Return height of the node."""
         return 17
 
+    @property
+    def normals(self):
+        """Return normals."""
+        return [Vector(1, 0), Vector(0, 1), Vector(-1, 0), Vector(0, -1)]
+
+    @property
     def vertices(self):
         """Return all vertices of the node as vectors."""
         return [
@@ -183,235 +207,71 @@ class RectangleNode(BaseNode):
             self.position + Vector(self.width(), 0),
         ]
 
-    def projection_x(self):
+    def projection(self, normal):
         """Return minimum and maximum projection on the X axis.
 
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-        minimum, maximum = float("+inf"), float("-inf")
-        for vertex in self.vertices():
-            projection = vertex.dot(Vector(1, 0))
-            minimum = min(minimum, projection)
-            maximum = max(maximum, projection)
-
-        return minimum, maximum
-
-    def projection_y(self):
-        """Return minimum and maximum projection on the Y axis.
+        :param normal: Normal vector to project onto.
 
         :return: Tuple containing the minimum and maximum values.
 
         """
         minimum, maximum = float("+inf"), float("-inf")
-        for vertex in self.vertices():
-            projection = vertex.dot(Vector(0, 1))
+        for vertex in self.vertices:
+            projection = vertex.dot(normal)
             minimum = min(minimum, projection)
             maximum = max(maximum, projection)
 
         return minimum, maximum
 
 
-class Vector(object):
-    """Representation of a Vector."""
+class ViewerNode(BaseNode):
+    """Representation of a Viewer node."""
 
-    def __init__(self, x, y):
-        """Initialize vector.
+    __metaclass__ = abc.ABCMeta
 
-        :param x: Initial projected value on the X axis.
+    @staticmethod
+    def width():
+        """Return width of the node."""
+        return 83
 
-        :param y: Initial projected value on the Y axis.
-
-
-        """
-        self._value = (x, y)
-
-    def __repr__(self):
-        """Display representation of vector"""
-        return "<Vector(x={},y={})>".format(self._value[0], self._value[1])
-
-    def __add__(self, other):
-        """Addition with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x + other.x, self.y + other.y)
-        return Vector(self.x + other, self.y + other)
-
-    def __iadd__(self, other):
-        """In-place addition with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self + other)._value
-        return self
-
-    def __sub__(self, other):
-        """Subtraction with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x - other.x, self.y - other.y)
-        return Vector(self.x - other, self.y - other)
-
-    def __isub__(self, other):
-        """In-place subtraction with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self - other)._value
-        return self
-
-    def __mul__(self, other):
-        """Multiplication with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x * other.x, self.y * other.y)
-        return Vector(self.x * other, self.y * other)
-
-    def __imul__(self, other):
-        """In-place multiplication with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self * other)._value
-        return self
-
-    def __div__(self, other):
-        """Division with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        if isinstance(other, Vector):
-            return Vector(self.x / other.x, self.y / other.y)
-        return Vector(self.x / other, self.y / other)
-
-    def __idiv__(self, other):
-        """In-place division with vector.
-
-        :param other: Instance of :class:`Vector` or scalar.
-
-        :return: Instance of :class:`Vector`.
-
-        """
-        self._value = (self / other)._value
-        return self
-
-    def __iter__(self):
-        """Iterate though vector values.
-
-        :return: Iterator.
-
-        """
-        return iter(self._value)
-
-    def __abs__(self):
-        """Length of the vector
-
-        :return: Floating value.
-
-        """
-        return math.sqrt(sum(v * v for v in list(self)))
+    @staticmethod
+    def height():
+        """Return height of the node."""
+        return 17
 
     @property
-    def x(self):
-        """Projected value on the X axis.
-
-        :return: Integer value.
-
-        """
-        return self._value[0]
+    def normals(self):
+        """Return normals."""
+        return [
+            Vector(0, 1), Vector(-0.5, 1), Vector(0.5, 1),
+            Vector(0, -1), Vector(-0.5, -1), Vector(0.5, -1),
+        ]
 
     @property
-    def y(self):
-        """Projected value on the Y axis.
+    def vertices(self):
+        """Return all vertices of the node as vectors."""
+        bevel = 15
+        return [
+            self.position + Vector(0, self.height() / 2),
+            self.position + Vector(bevel, self.height()),
+            self.position + Vector(self.width() - bevel, self.height()),
+            self.position + Vector(self.width(), self.height() / 2),
+            self.position + Vector(self.width() - bevel, 0),
+            self.position + Vector(bevel, 0),
+        ]
 
-        :return: Integer value.
+    def projection(self, normal):
+        """Return minimum and maximum projection on the X axis.
 
-        """
-        return self._value[1]
+        :param normal: Normal vector to project onto.
 
-    def dot(self, other):
-        """Return the dot product of two vectors.
-
-        :param other: Instance of :class:`Vector`.
-
-        :return: Floating value.
-
-        """
-        return sum(v * w for v, w in zip(self, other))
-
-    def unit_vector(self):
-        """Return unit vector.
-
-        :return: Instance of :class:`Vector`.
+        :return: Tuple containing the minimum and maximum values.
 
         """
-        return self / abs(self)
+        minimum, maximum = float("+inf"), float("-inf")
+        for vertex in self.vertices:
+            projection = vertex.dot(normal)
+            minimum = min(minimum, projection)
+            maximum = max(maximum, projection)
 
-
-def collision(node1, node2):
-    """Check collision between two nodes
-
-    It uses a simplified implementation of the SAT Collision algorithm as
-    we consider that the nodes cannot rotate.
-
-    :param node1: Instance of :class:`arcade_nuke.node.BaseNode`.
-
-    :param node2: Instance of :class:`arcade_nuke.node.BaseNode`.
-
-    :return: None if no collision of Instance of :class:`Vector` representing
-        the push vector.
-
-    """
-    impact_vector = Vector(0, 0)
-
-    # Horizontal axis
-    min1, max1 = node1.projection_x()
-    min2, max2 = node2.projection_x()
-
-    if not (max1 >= min2 and max2 >= min1):
-        return
-
-    x = min(max1 - min2, max2 - min1)
-    impact_vector += Vector(x, 0)
-
-    # Vertical axis
-    min1, max1 = node1.projection_y()
-    min2, max2 = node2.projection_y()
-
-    if not (max1 >= min2 and max2 >= min1):
-        return
-
-    y = min(max1 - min2, max2 - min1)
-    impact_vector += Vector(0, y)
-
-    # If collision is confirmed, compute push vector.
-    if impact_vector.x > impact_vector.y:
-        return Vector(1, -1)
-    return Vector(-1, 1)
+        return minimum, maximum
