@@ -57,10 +57,21 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
         try:
             self._check_collision()
 
-        except arcade_nuke.base.GameOver:
+        except arcade_nuke.base.GameOver as error:
             self._ball.destroy()
             self.stop()
             self.signal.stopped.emit()
+
+            if not error.success:
+                arcade_nuke.base.draw_game_over(
+                    x=self._field.left_edge + 200,
+                    y=self._field.left_edge + 400
+                )
+            else:
+                arcade_nuke.base.draw_win(
+                    x=self._field.left_edge + 250,
+                    y=self._field.left_edge + 250
+                )
 
             self._initialized = False
 
@@ -94,7 +105,7 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
             return
 
         if self._ball.position.y > self._field.bottom_edge:
-            raise arcade_nuke.base.GameOver("Failed!")
+            raise arcade_nuke.base.GameOver()
 
         # Check collision with the bricks.
         bricks_destroyed = 0
@@ -115,7 +126,7 @@ class BreakoutGame(arcade_nuke.base.BaseGame):
 
         # Raise if all bricks are destroyed.
         if len(self._bricks) == bricks_destroyed:
-            raise arcade_nuke.base.GameOver("Done!")
+            raise arcade_nuke.base.GameOver(success=True)
 
         # Check collision with the paddle.
         push_vector = arcade_nuke.logic.collision(self._ball, self._paddle)
@@ -330,9 +341,9 @@ class Brick(arcade_nuke.node.RectangleNode):
 def brick_generator1(x, y):
     """Draw first brick pattern.
 
-    :param x: Position of the left edge of the field on the X axis.
+    :param x: Position of the left corner of the pattern.
 
-    :param y: Position of the top edge of the field on the Y axis.
+    :param y: Position of the top corner of the pattern.
 
     +-----------------------------------------+
     | +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ +-+ |
@@ -384,9 +395,9 @@ def brick_generator1(x, y):
 def brick_generator2(x, y):
     """Draw first brick pattern.
 
-    :param x: Position of the left edge of the field on the X axis.
+    :param x: Position of the left corner of the pattern.
 
-    :param y: Position of the top edge of the field on the Y axis.
+    :param y: Position of the top corner of the pattern.
 
     +-----------------------------------------+
     |           +-+             +-+           |
@@ -476,9 +487,9 @@ def brick_generator2(x, y):
 def brick_generator3(x, y):
     """Draw first brick pattern.
 
-    :param x: Position of the left edge of the field on the X axis.
+    :param x: Position of the left corner of the pattern.
 
-    :param y: Position of the top edge of the field on the Y axis.
+    :param y: Position of the top corner of the pattern.
 
     +-----------------------------------------+
     |       +-+ +-+             +-+ +-+       |
