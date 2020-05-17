@@ -27,10 +27,6 @@ class BaseNode(object):
 
         self._destroyed = False
 
-    def __repr__(self):
-        """Display representation of node"""
-        return "<Node(label={})>".format(self.label)
-
     @staticmethod
     def width():
         """Return width of the node."""
@@ -128,8 +124,6 @@ class BaseNode(object):
 
 class DotNode(BaseNode):
     """Representation of a Dot node."""
-
-    __metaclass__ = abc.ABCMeta
 
     @staticmethod
     def width():
