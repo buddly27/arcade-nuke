@@ -283,11 +283,6 @@ class Paddle(arcade_nuke.node.ViewerNode):
         """Return label of the node."""
         return "paddle"
 
-    @property
-    def node_class(self):
-        """Return class of the node."""
-        return "Viewer"
-
     def move(self, y, right_edge, left_edge):
         """Move the paddle on the X axis within the limit of the field.
 

@@ -238,6 +238,16 @@ class ViewerNode(BaseNode):
         return 17
 
     @property
+    def label(self):
+        """Return label of the node."""
+        return "viewer"
+
+    @property
+    def node_class(self):
+        """Return class of the node."""
+        return "Viewer"
+
+    @property
     def normals(self):
         """Return normals."""
         return [
