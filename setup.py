@@ -24,13 +24,6 @@ with open(
 
 
 # Compute dependencies.
-INSTALL_REQUIRES = [
-]
-DOC_REQUIRES = [
-    "sphinx >= 1.8, < 2",
-    "sphinx_rtd_theme >= 0.1.6, < 1",
-    "lowdown >= 0.1.0, < 2"
-]
 TEST_REQUIRES = [
     "pytest-runner >= 2.7, < 3",
     "pytest >= 4, < 5",
@@ -52,12 +45,9 @@ setup(
         "": "source"
     },
     include_package_data=True,
-    install_requires=INSTALL_REQUIRES,
     tests_require=TEST_REQUIRES,
     extras_require={
-        "doc": DOC_REQUIRES,
         "test": TEST_REQUIRES,
-        "dev": DOC_REQUIRES + TEST_REQUIRES
     },
     zip_safe=False
 )
