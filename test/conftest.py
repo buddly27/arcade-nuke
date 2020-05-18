@@ -52,3 +52,11 @@ def nuke_mocker(request):
     m = mock.patch.dict("sys.modules", {"nuke": mock.Mock()})
     m.start()
     request.addfinalizer(m.stop)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def pyside_mocker(request):
+    """Mock the PySide2 library."""
+    m = mock.patch.dict("sys.modules", {"PySide2": mock.Mock()})
+    m.start()
+    request.addfinalizer(m.stop)

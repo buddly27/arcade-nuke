@@ -3,7 +3,7 @@
 import math
 
 
-def collision(node1, node2, threshold=40):
+def collision(node1, node2, threshold=50):
     """Check collision between two nodes.
 
     :param node1: Instance of :class:`arcade_nuke.node.BaseNode`.
@@ -13,7 +13,7 @@ def collision(node1, node2, threshold=40):
     :param threshold: Maximum distance between the two nodes which will trigger
         the collision algorithm. If the distance between the two nodes is
         superior to this threshold, we consider that the node do not collide.
-        Default is 40.
+        Default is 50.
 
     :return: None if no collision of Instance of :class:`Vector` representing
         the push vector.
