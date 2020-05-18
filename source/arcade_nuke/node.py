@@ -138,7 +138,7 @@ class DotNode(BaseNode):
     @staticmethod
     def radius():
         """Return radius of node."""
-        return 5.5
+        return 6
 
     def label(self):
         """Return label of the node."""
