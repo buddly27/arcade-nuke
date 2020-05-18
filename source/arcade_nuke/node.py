@@ -128,12 +128,12 @@ class DotNode(BaseNode):
     @staticmethod
     def width():
         """Return width of the node."""
-        return 11
+        return 12
 
     @staticmethod
     def height():
         """Return height of the node."""
-        return 11
+        return 12
 
     @staticmethod
     def radius():
