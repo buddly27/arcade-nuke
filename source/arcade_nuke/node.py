@@ -175,7 +175,33 @@ class DotNode(BaseNode):
         return minimum, maximum
 
 
-class RectangleNode(BaseNode):
+class PolygonNode(BaseNode):
+    """Representation of a Polygon node."""
+
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractproperty
+    def vertices(self):
+        """Return all vertices of the node as vectors."""
+
+    def projection(self, normal):
+        """Return minimum and maximum projection on the X axis.
+
+        :param normal: Normal vector to project onto.
+
+        :return: Tuple containing the minimum and maximum values.
+
+        """
+        minimum, maximum = float("+inf"), float("-inf")
+        for vertex in self.vertices:
+            projection = vertex.dot(normal)
+            minimum = min(minimum, projection)
+            maximum = max(maximum, projection)
+
+        return minimum, maximum
+
+
+class RectangleNode(PolygonNode):
     """Representation of a Rectangle node."""
 
     __metaclass__ = abc.ABCMeta
@@ -205,27 +231,9 @@ class RectangleNode(BaseNode):
             self.position + Vector(self.width(), 0),
         ]
 
-    def projection(self, normal):
-        """Return minimum and maximum projection on the X axis.
 
-        :param normal: Normal vector to project onto.
-
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-        minimum, maximum = float("+inf"), float("-inf")
-        for vertex in self.vertices:
-            projection = vertex.dot(normal)
-            minimum = min(minimum, projection)
-            maximum = max(maximum, projection)
-
-        return minimum, maximum
-
-
-class ViewerNode(BaseNode):
+class ViewerNode(PolygonNode):
     """Representation of a Viewer node."""
-
-    __metaclass__ = abc.ABCMeta
 
     @staticmethod
     def width():
@@ -267,19 +275,3 @@ class ViewerNode(BaseNode):
             self.position + Vector(self.width() - bevel, 0),
             self.position + Vector(bevel, 0),
         ]
-
-    def projection(self, normal):
-        """Return minimum and maximum projection on the X axis.
-
-        :param normal: Normal vector to project onto.
-
-        :return: Tuple containing the minimum and maximum values.
-
-        """
-        minimum, maximum = float("+inf"), float("-inf")
-        for vertex in self.vertices:
-            projection = vertex.dot(normal)
-            minimum = min(minimum, projection)
-            maximum = max(maximum, projection)
-
-        return minimum, maximum
