@@ -219,7 +219,7 @@ class RectangleNode(PolygonNode):
     @property
     def normals(self):
         """Return normals."""
-        return [Vector(1, 0), Vector(0, 1), Vector(-1, 0), Vector(0, -1)]
+        return [Vector(1, 0), Vector(0, 1)]
 
     @property
     def vertices(self):
@@ -258,20 +258,22 @@ class ViewerNode(PolygonNode):
     @property
     def normals(self):
         """Return normals."""
-        return [
-            Vector(0, 1), Vector(-0.5, 1), Vector(0.5, 1),
-            Vector(0, -1), Vector(-0.5, -1), Vector(0.5, -1),
-        ]
+        return [Vector(0, 1), Vector(-0.6, 1), Vector(0.6, 1)]
 
     @property
     def vertices(self):
         """Return all vertices of the node as vectors."""
+        # The bevel is exaggerated to provide more interesting bounces.
         bevel = 15
+
+        # Top position is shifted to the right.
+        _position = self.position + Vector(bevel - 2, 0)
+
         return [
-            self.position + Vector(0, self.height() / 2),
-            self.position + Vector(bevel, self.height()),
-            self.position + Vector(self.width() - bevel, self.height()),
-            self.position + Vector(self.width(), self.height() / 2),
-            self.position + Vector(self.width() - bevel, 0),
-            self.position + Vector(bevel, 0),
+            _position,
+            _position + Vector(-bevel, self.height() / 2),
+            _position + Vector(0, self.height()),
+            _position + Vector(self.width() - bevel, self.height()),
+            _position + Vector(self.width(), self.height() / 2),
+            _position + Vector(self.width() - bevel, 0),
         ]
