@@ -65,7 +65,7 @@ class BaseNode(object):
     def middle_position(self):
         """Return current middle position the top-left corner of the node."""
         position = self.position
-        return position + Vector(self.width()/2, self.height()/2)
+        return position + Vector(self.width() / 2.0, self.height() / 2.0)
 
     @abc.abstractproperty
     def normals(self):
@@ -258,7 +258,11 @@ class ViewerNode(PolygonNode):
     @property
     def normals(self):
         """Return normals."""
-        return [Vector(0, 1), Vector(-0.6, 1), Vector(0.6, 1)]
+        normals = [Vector(0, 1)]
+        for diagonal in [Vector(15, 8.5), Vector(-15, 8.5)]:
+            normals.append(diagonal / abs(diagonal))
+
+        return normals
 
     @property
     def vertices(self):
@@ -271,9 +275,9 @@ class ViewerNode(PolygonNode):
 
         return [
             _position,
-            _position + Vector(-bevel, self.height() / 2),
+            _position + Vector(-bevel, self.height() / 2.0),
             _position + Vector(0, self.height()),
             _position + Vector(self.width() - bevel, self.height()),
-            _position + Vector(self.width(), self.height() / 2),
+            _position + Vector(self.width(), self.height() / 2.0),
             _position + Vector(self.width() - bevel, 0),
         ]
