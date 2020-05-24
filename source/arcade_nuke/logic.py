@@ -4,7 +4,7 @@ import math
 
 
 def collision(node1, node2, threshold=50):
-    """Check collision between two nodes.
+    """Check collision between two nodes and return collision axis.
 
     :param node1: Instance of :class:`arcade_nuke.node.BaseNode`.
 
@@ -15,8 +15,7 @@ def collision(node1, node2, threshold=50):
         superior to this threshold, we consider that the node do not collide.
         Default is 50.
 
-    :return: None if no collision of Instance of :class:`Vector` representing
-        the push vector.
+    :return: None if no collision or collision axis.
 
     """
     # Ignore if the two nodes are too far apart.
@@ -27,7 +26,8 @@ def collision(node1, node2, threshold=50):
     # Check separating axis against all normals.
     normals = set(node1.normals + node2.normals)
 
-    push_vectors = []
+    # Record all collision axis vector per distance.
+    collision_axis = {}
 
     for normal in normals:
         min1, max1 = node1.projection(normal)
@@ -36,20 +36,16 @@ def collision(node1, node2, threshold=50):
             return
 
         distance = min(max2 - min1, max1 - min2)
+        collision_axis[distance] = normal
 
-        # If collision is confirmed, compute push vector.
-        vector = normal * (distance / abs(normal) + 1)
-        push_vectors.append(vector)
+    # Return axis with minimum collision distance.
+    push_vector = collision_axis[min(collision_axis.keys())]
 
-    # Compute the minimum push vector to determine the change in motion vector.
-    push_vector = min(push_vectors, key=(lambda _vector: abs(_vector)))
-
-    # Compute distance between two node centers.
+    # Invert direction if necessary.
     if delta.dot(push_vector) > 0:
         push_vector *= -1
 
-    # Convert into a unit vector.
-    return push_vector / abs(push_vector)
+    return push_vector
 
 
 def bounce(motion_vector, push_vector):

@@ -18,13 +18,31 @@ def setup(mocker):
 
 
 def test_collision():
-    """Test collision between several nodes."""
+    """Test collision between a Dot and a Viewer nodes at various positions.
+    """
     import arcade_nuke.logic
     import arcade_nuke.node
 
     node1 = arcade_nuke.node.DotNode(0, 0)
-    node2 = arcade_nuke.node.ViewerNode(12, 0)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) is None
 
-    print(node1.middle_position)
-    print(node2.middle_position)
+    node1 = arcade_nuke.node.DotNode(0, 1)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[1] * -1
+
+    node1 = arcade_nuke.node.DotNode(0, 2)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[1] * -1
+
+    node1 = arcade_nuke.node.DotNode(0, 3)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[2]
+
+    node1 = arcade_nuke.node.DotNode(0, 4)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[2]
+
+    node1 = arcade_nuke.node.DotNode(0, 5)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
