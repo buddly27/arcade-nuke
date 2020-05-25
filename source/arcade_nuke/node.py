@@ -259,7 +259,7 @@ class ViewerNode(PolygonNode):
     def normals(self):
         """Return normals."""
         normals = [Vector(0, 1)]
-        for diagonal in [Vector(15, 8.5), Vector(-15, 8.5)]:
+        for diagonal in [Vector(8.5, 15), Vector(-8.5, 15)]:
             normals.append(diagonal / abs(diagonal))
 
         return normals

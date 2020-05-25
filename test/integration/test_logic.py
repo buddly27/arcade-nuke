@@ -24,9 +24,13 @@ def test_collision():
     import arcade_nuke.node
 
     # Dot node on the left of the Viewer node evolving on the Y axis.
-    node1 = arcade_nuke.node.DotNode(0, 0)
+    node1 = arcade_nuke.node.DotNode(0, -1)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
+
+    node1 = arcade_nuke.node.DotNode(0, 0)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[1] * -1
 
     node1 = arcade_nuke.node.DotNode(0, 1)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
@@ -46,12 +50,20 @@ def test_collision():
 
     node1 = arcade_nuke.node.DotNode(0, 5)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[2]
+
+    node1 = arcade_nuke.node.DotNode(0, 6)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
 
     # Dot node on the right of the Viewer node evolving on the Y axis.
-    node1 = arcade_nuke.node.DotNode(110, 0)
+    node1 = arcade_nuke.node.DotNode(110, -1)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
+
+    node1 = arcade_nuke.node.DotNode(110, 0)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[2] * -1
 
     node1 = arcade_nuke.node.DotNode(110, 1)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
@@ -70,5 +82,9 @@ def test_collision():
     assert arcade_nuke.logic.collision(node1, node2) == node2.normals[1]
 
     node1 = arcade_nuke.node.DotNode(110, 5)
+    node2 = arcade_nuke.node.ViewerNode(14, 0)
+    assert arcade_nuke.logic.collision(node1, node2) == node2.normals[1]
+
+    node1 = arcade_nuke.node.DotNode(110, 6)
     node2 = arcade_nuke.node.ViewerNode(14, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
