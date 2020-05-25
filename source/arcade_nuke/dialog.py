@@ -83,7 +83,7 @@ class Player(QtWidgets.QDialog):
         hours = (seconds / 3600)
 
         self._duration_lbl.setText(
-            "{:02}:{:02}:{:02}".format(hours, minutes, seconds)
+            "{:02}:{:02}:{:02}".format(hours, minutes, seconds % 60)
         )
 
     def event(self, event):
