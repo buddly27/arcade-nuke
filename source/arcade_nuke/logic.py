@@ -3,7 +3,7 @@
 import math
 
 
-def collision(node1, node2, threshold=50):
+def collision(node1, node2, threshold=80):
     """Check collision between two nodes and return collision axis.
 
     :param node1: Instance of :class:`arcade_nuke.node.BaseNode`.

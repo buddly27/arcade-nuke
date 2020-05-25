@@ -10,20 +10,20 @@ def test_collision_threshold(mocker):
     node1 = mocker.Mock(
         middle_position=Vector(0, 0),
         normals=[Vector(1, 0)],
-        projection=lambda _: (-50, 50)
+        projection=lambda _: (-80, 80)
     )
     node2 = mocker.Mock(
-        middle_position=Vector(51, 0),
+        middle_position=Vector(81, 0),
         normals=[Vector(1, 0)],
         projection=lambda _: (0, 80)
     )
 
     node1.middle_position = Vector(0, 0)
-    node2.middle_position = Vector(51, 0)
+    node2.middle_position = Vector(81, 0)
     assert arcade_nuke.logic.collision(node1, node2) is None
 
     node1.middle_position = Vector(0, 0)
-    node2.middle_position = Vector(50, 0)
+    node2.middle_position = Vector(80, 0)
     assert arcade_nuke.logic.collision(node1, node2) is not None
 
     node1.middle_position = Vector(0, 0)
