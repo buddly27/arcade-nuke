@@ -259,7 +259,7 @@ class ViewerNode(PolygonNode):
     def normals(self):
         """Return normals."""
         normals = [Vector(0, 1)]
-        for diagonal in [Vector(8.5, 15), Vector(-8.5, 15)]:
+        for diagonal in [Vector(8.5, 20), Vector(-8.5, 20)]:
             normals.append(diagonal / abs(diagonal))
 
         return normals
@@ -268,7 +268,7 @@ class ViewerNode(PolygonNode):
     def vertices(self):
         """Return all vertices of the node as vectors."""
         # The bevel is exaggerated to provide more interesting bounces.
-        bevel = 15
+        bevel = 20
 
         # Top position is shifted to the right.
         _position = self.position + Vector(bevel - 2, 0)
