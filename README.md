@@ -2,6 +2,8 @@
 
 Play Arcade Games in Foundry Nuke
 
+![Breakout](resource/breakout-nuke.gif)
+
 ## Installing
 
 Copy the Python module `./source/arcade_nuke` into your personal `~/.nuke`
